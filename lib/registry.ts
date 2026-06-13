@@ -1,0 +1,232 @@
+// Maps API resource names to Prisma models + behaviour for the generic CRUD layer.
+
+export type ResourceDef = {
+  model: string; // prisma client property name
+  softDelete?: boolean;
+  search?: string[]; // string fields searched with `contains`
+  include?: any;
+  refPrefix?: string; // auto reference like L-2026-0001
+  refField?: string;
+  ownerScope?: string; // field restricting AGENT role to own records
+  defaultOrder?: any;
+};
+
+export const RESOURCES: Record<string, ResourceDef> = {
+  leads: {
+    model: "lead",
+    softDelete: true,
+    search: ["customerName", "companyName", "email", "phone", "whatsapp", "leadRef", "pickupLocation", "dropoffLocation"],
+    include: {
+      assignedTo: { select: { id: true, name: true } },
+      country: { select: { id: true, name: true } },
+      brand: { select: { id: true, name: true } },
+      serviceLines: { select: { id: true } },
+      quotes: { where: { deletedAt: null }, select: { id: true } },
+    },
+    refPrefix: "L",
+    refField: "leadRef",
+    ownerScope: "assignedToId",
+    defaultOrder: { createdAt: "desc" },
+  },
+  customers: {
+    model: "customer",
+    softDelete: true,
+    search: ["name", "companyName", "email", "phone", "whatsapp"],
+    include: { country: false },
+    defaultOrder: { createdAt: "desc" },
+  },
+  serviceLines: {
+    model: "serviceLine",
+    search: ["serviceType", "pickupLocation", "dropoffLocation"],
+    include: {
+      lead: { select: { id: true, customerName: true, leadRef: true } },
+      supplier: { select: { id: true, companyName: true } },
+    },
+    defaultOrder: { createdAt: "asc" },
+  },
+  suppliers: {
+    model: "supplier",
+    softDelete: true,
+    search: ["companyName", "contactPerson", "email", "phone", "serviceAreas"],
+    include: {
+      country: { select: { id: true, name: true } },
+      inventory: true,
+    },
+    defaultOrder: { companyName: "asc" },
+  },
+  supplierVehicles: {
+    model: "supplierVehicle",
+    search: ["vehicleType"],
+    include: { supplier: { select: { id: true, companyName: true } } },
+    defaultOrder: { id: "asc" },
+  },
+  supplierRequests: {
+    model: "supplierQuoteRequest",
+    search: ["availability", "notes"],
+    include: {
+      supplier: { select: { id: true, companyName: true, avgResponseMins: true } },
+      lead: { select: { id: true, customerName: true, leadRef: true } },
+      serviceLine: { select: { id: true, serviceType: true } },
+      requestedBy: { select: { id: true, name: true } },
+    },
+    defaultOrder: { sentAt: "desc" },
+  },
+  quotes: {
+    model: "quote",
+    softDelete: true,
+    search: ["quoteRef", "internalNotes"],
+    include: {
+      lead: { select: { id: true, customerName: true, leadRef: true } },
+      brand: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+      items: true,
+    },
+    refPrefix: "Q",
+    refField: "quoteRef",
+    defaultOrder: { createdAt: "desc" },
+  },
+  bookings: {
+    model: "booking",
+    softDelete: true,
+    search: ["bookingRef", "city", "pickupLocation", "dropoffLocation"],
+    include: {
+      lead: { select: { id: true, customerName: true, leadRef: true } },
+      customer: { select: { id: true, name: true } },
+      agent: { select: { id: true, name: true } },
+      supplier: { select: { id: true, companyName: true } },
+      brand: { select: { id: true, name: true } },
+    },
+    refPrefix: "B",
+    refField: "bookingRef",
+    ownerScope: "agentId",
+    defaultOrder: { travelDate: "asc" },
+  },
+  payments: {
+    model: "payment",
+    search: ["reference", "method", "notes"],
+    include: {
+      booking: { select: { id: true, bookingRef: true } },
+      supplier: { select: { id: true, companyName: true } },
+      recordedBy: { select: { id: true, name: true } },
+    },
+    defaultOrder: { createdAt: "desc" },
+  },
+  commissions: {
+    model: "commission",
+    softDelete: true,
+    search: ["notes"],
+    include: {
+      booking: { select: { id: true, bookingRef: true } },
+      agent: { select: { id: true, name: true } },
+    },
+    defaultOrder: { createdAt: "desc" },
+  },
+  suppliersPayments: { model: "payment", defaultOrder: { createdAt: "desc" } },
+  communications: {
+    model: "communication",
+    search: ["summary"],
+    include: { user: { select: { id: true, name: true } } },
+    defaultOrder: { occurredAt: "desc" },
+  },
+  callLogs: {
+    model: "callLog",
+    search: ["fromNumber", "toNumber", "status"],
+    include: {
+      lead: { select: { id: true, customerName: true } },
+      user: { select: { id: true, name: true } },
+    },
+    defaultOrder: { startedAt: "desc" },
+  },
+  tasks: {
+    model: "task",
+    softDelete: true,
+    search: ["title", "description"],
+    include: {
+      lead: { select: { id: true, customerName: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+    defaultOrder: { dueDate: "asc" },
+  },
+  notes: {
+    model: "note",
+    search: ["body"],
+    include: { user: { select: { id: true, name: true } } },
+    defaultOrder: { createdAt: "desc" },
+  },
+  brands: {
+    model: "brand",
+    softDelete: true,
+    search: ["name", "displayName", "contactEmail"],
+    defaultOrder: { name: "asc" },
+  },
+  countries: {
+    model: "country",
+    softDelete: true,
+    search: ["name", "isoCode", "currency"],
+    include: { manager: { select: { id: true, name: true } } },
+    defaultOrder: { name: "asc" },
+  },
+  exchangeRates: {
+    model: "exchangeRate",
+    search: ["base", "quote"],
+    defaultOrder: { base: "asc" },
+  },
+  attendance: {
+    model: "attendance",
+    search: [],
+    include: { user: { select: { id: true, name: true } } },
+    defaultOrder: { createdAt: "desc" },
+  },
+  alerts: {
+    model: "alert",
+    search: ["title", "body", "type"],
+    defaultOrder: { createdAt: "desc" },
+  },
+  users: {
+    model: "user",
+    search: ["name", "email"],
+    include: { country: { select: { id: true, name: true } } },
+    defaultOrder: { name: "asc" },
+  },
+};
+
+// fields parsed as numbers when coming from forms
+export const NUMBER_FIELDS = new Set([
+  "passengerCount", "supplierCost", "customerPrice", "margin", "profit", "exchangeRate",
+  "customerInvoiceAmount", "customerPaidAmount", "supplierPaidAmount", "grossProfit",
+  "amount", "baseAmount", "rate", "seats", "quantity", "qty", "version", "rating",
+  "avgResponseMins", "acceptanceRate", "cancellationCount", "complaintCount", "score",
+  "price", "responseMins", "durationSecs", "breakMins", "aiQualityScore", "aiConversionPct",
+  "leadId", "customerId", "countryId", "brandId", "assignedToId", "supplierId",
+  "serviceLineId", "quoteId", "bookingId", "agentId", "createdById", "approvedById",
+  "managerId", "userId", "requestedById", "recordedById",
+]);
+
+export const DATE_FIELDS = new Set([
+  "travelDate", "validUntil", "sentAt", "acceptedAt", "respondedAt", "paidAt",
+  "paidDate", "dueDate", "nextFollowUpAt", "lastContactAt", "firstResponseAt",
+  "slaDueAt", "assignedAt", "occurredAt", "completedAt", "clockInAt", "clockOutAt",
+  "startedAt", "resolvedAt",
+]);
+
+export const BOOL_FIELDS = new Set(["active", "vip", "online", "success", "slaBreached"]);
+
+export function coerceBody(body: Record<string, any>) {
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (v === "" || v === undefined) {
+      out[k] = null;
+      continue;
+    }
+    if (NUMBER_FIELDS.has(k)) out[k] = v === null ? null : Number(v);
+    else if (DATE_FIELDS.has(k)) out[k] = v === null ? null : new Date(v);
+    else if (BOOL_FIELDS.has(k)) out[k] = v === true || v === "true" || v === "1";
+    else out[k] = v;
+  }
+  return out;
+}
+
+export function makeRef(prefix: string, id: number) {
+  return `${prefix}-${new Date().getFullYear()}-${String(id).padStart(4, "0")}`;
+}

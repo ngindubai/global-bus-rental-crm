@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Global Bus Rental CRM — Setup Tasks & Costs</title>
+<style>
+  :root { --pr:#0f5b68; --pr-dk:#0c4854; --ac:#f5a623; --bg:#f4f7f8; --ink:#0a2a30; --mu:#5e7176; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Manrope,Segoe UI,system-ui,sans-serif; background:var(--bg); color:var(--ink); line-height:1.55; }
+  header { background:var(--pr); color:#fff; padding:34px 28px; }
+  header h1 { margin:0; font-size:28px; letter-spacing:-.02em; }
+  header p { margin:6px 0 0; opacity:.85; }
+  .wrap { max-width:920px; margin:0 auto; padding:28px; }
+  .card { background:#fff; border:1px solid #e3eaec; border-radius:12px; padding:22px 24px; margin-bottom:20px; box-shadow:0 1px 3px rgba(10,42,48,.06); }
+  h2 { font-size:20px; margin:0 0 4px; }
+  h2 .tag { font-size:12px; font-weight:600; color:#fff; background:var(--ac); border-radius:6px; padding:2px 8px; vertical-align:middle; margin-left:8px; }
+  h2 .req { background:#d4860f; }
+  h2 .opt { background:#5e7176; }
+  .meta { color:var(--mu); font-size:13px; margin-bottom:12px; }
+  ol { margin:10px 0 0; padding-left:20px; }
+  ol li { margin:6px 0; }
+  code { background:#eef3f4; border-radius:5px; padding:1px 6px; font-size:13px; }
+  a { color:var(--pr); }
+  table { width:100%; border-collapse:collapse; margin-top:8px; font-size:14px; }
+  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid #eaf0f1; }
+  th { background:#f1f6f7; font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:var(--mu); }
+  .cost { font-weight:700; }
+  .chk { display:flex; gap:10px; align-items:flex-start; }
+  .chk input { margin-top:5px; transform:scale(1.25); accent-color:var(--pr); }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .free { background:#e6f6ec; color:#1a7f44; }
+  .paid { background:#fdeede; color:#b46606; }
+  .env { background:#0a2a30; color:#cdeef0; border-radius:8px; padding:12px 14px; font-family:ui-monospace,Menlo,monospace; font-size:13px; white-space:pre; overflow-x:auto; }
+  .total { font-size:18px; }
+  .note { background:#fff7e9; border:1px solid #f3dca9; border-radius:8px; padding:12px 14px; font-size:14px; }
+  footer { text-align:center; color:var(--mu); font-size:13px; padding:24px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap" style="padding-top:0;padding-bottom:0;">
+    <h1>🚌 Global Bus Rental CRM — Setup Tasks</h1>
+    <p>Everything is built and runs today in safe “stub mode”. Work through these tasks to switch each integration to live. Tick them off as you go.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>Cost summary</h2>
+    <div class="meta">Indicative monthly costs for a 30-agent / 200-leads-per-day operation. All prices are estimates — check each provider for current rates.</div>
+    <table>
+      <tr><th>Service</th><th>Plan</th><th>Est. monthly</th><th>Notes</th></tr>
+      <tr><td>Production Postgres</td><td>Neon / Supabase / RDS</td><td class="cost">$0 – $69</td><td>Free tiers fine to start; scale up with volume</td></tr>
+      <tr><td>App hosting</td><td>Render / Vercel / Fly</td><td class="cost">$7 – $25</td><td>You already host the MC CRM on Render Starter</td></tr>
+      <tr><td>Vonage Voice</td><td>Pay-as-you-go</td><td class="cost">~$1/number + usage</td><td>Per-minute call + recording charges</td></tr>
+      <tr><td>Stripe</td><td>Pay-as-you-go</td><td class="cost">2.9% + $0.30 / txn</td><td>No monthly fee; per-transaction only</td></tr>
+      <tr><td>Exchange-rate API</td><td>exchangerate-api.com</td><td class="cost">$0 – $10</td><td>Free tier = 1,500 req/mo</td></tr>
+      <tr><td>Anthropic Claude (AI)</td><td>API usage</td><td class="cost">~$20 – $150</td><td>Depends on volume; pay per token</td></tr>
+      <tr><td class="total"><strong>Typical total</strong></td><td></td><td class="cost total"><strong>~$55 – $250/mo</strong></td><td>+ Vonage &amp; Stripe usage</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>0 · Local run (do this first) <span class="tag req">Required</span></h2>
+    <div class="meta"><span class="pill free">Free</span> · 5 minutes · needs only Node 18+ — <strong>no Docker</strong></div>
+    <p class="note" style="margin-bottom:12px;">PostgreSQL runs as a plain Node process (<code>embedded-postgres</code>) — nothing to install, no admin rights, no Docker. Data is stored in <code>.pgdata/</code>.</p>
+    <ol>
+      <li>Open a terminal in the project folder <code>Bus-Rental-CRM</code>.</li>
+      <li>Install dependencies: <code>npm install</code></li>
+      <li>Start the database: <code>npm run db:up</code> — <strong>leave this terminal running</strong> (Postgres on port 5433).</li>
+      <li>In a <em>second</em> terminal: create tables with <code>npm run db:push</code></li>
+      <li>Load sample data: <code>npm run db:seed</code></li>
+      <li>Start the app: <code>npm run dev</code> → open <a href="http://localhost:3200">http://localhost:3200</a></li>
+      <li>Log in with <code>admin@globalbusrental.com</code> / <code>admin123</code> and change the password under <strong>Users</strong>.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>1 · Production database <span class="tag req">Required to deploy</span></h2>
+    <div class="meta"><span class="pill free">Free tier</span> → <span class="pill paid">$19–69/mo</span> · ~10 minutes</div>
+    <div class="chk"><input type="checkbox" /><div>
+      <ol>
+        <li>Go to <a href="https://neon.tech" target="_blank">neon.tech</a> (recommended) or <a href="https://supabase.com" target="_blank">supabase.com</a> and create a free account.</li>
+        <li>Click <strong>New Project</strong> → name it <code>gbr-crm</code> → choose the region closest to your customers (e.g. Frankfurt/Bahrain for UAE).</li>
+        <li>Copy the <strong>connection string</strong> (starts with <code>postgresql://</code>). On Neon, use the <em>“Pooled connection”</em> string.</li>
+        <li>Paste it into <code>.env</code> as <code>DATABASE_URL="…"</code>.</li>
+        <li>Run <code>npm run db:push</code> then <code>npm run db:seed</code> against the new database.</li>
+      </ol>
+    </div></div>
+  </div>
+
+  <div class="card">
+    <h2>2 · App hosting <span class="tag req">Required to go live</span></h2>
+    <div class="meta"><span class="pill paid">$7–25/mo</span> · ~15 minutes</div>
+    <div class="chk"><input type="checkbox" /><div>
+      <ol>
+        <li>Push this folder to a new GitHub repo (already a git repo — just <code>git remote add origin …</code> and <code>git push</code>).</li>
+        <li>On <a href="https://render.com" target="_blank">Render</a> → <strong>New → Web Service</strong> → connect the repo.</li>
+        <li>Build command: <code>npm install &amp;&amp; npm run db:generate &amp;&amp; npm run build</code>. Start command: <code>npm start</code>.</li>
+        <li>Add all the variables from your <code>.env</code> under <strong>Environment</strong> (especially <code>DATABASE_URL</code> and a strong <code>JWT_SECRET</code>).</li>
+        <li>Generate a strong secret: run <code>node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"</code> and paste as <code>JWT_SECRET</code>.</li>
+        <li>Deploy. After first deploy, run <code>npm run db:push</code> once (Render Shell) to create tables.</li>
+      </ol>
+    </div></div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Vonage — inbound calls <span class="tag opt">Optional</span></h2>
+    <div class="meta"><span class="pill paid">~$1/number + per-minute</span> · ~20 minutes · powers Module 17</div>
+    <div class="chk"><input type="checkbox" /><div>
+      <ol>
+        <li>Create an account at <a href="https://dashboard.nexmo.com/sign-up" target="_blank">dashboard.vonage.com</a>.</li>
+        <li>Copy your <strong>API key</strong> and <strong>API secret</strong> from the dashboard home → into <code>.env</code> as <code>VONAGE_API_KEY</code> / <code>VONAGE_API_SECRET</code>.</li>
+        <li>Buy a virtual number: <strong>Numbers → Buy numbers</strong> (in your customers’ country).</li>
+        <li>Create a <strong>Voice Application</strong> (Applications → Create) and note the <strong>Application ID</strong> → <code>VONAGE_APPLICATION_ID</code>.</li>
+        <li>Set the application’s <strong>Event URL</strong> to <code>https://YOUR-DOMAIN/api/integrations/vonage/events</code> (POST).</li>
+        <li>Copy the <strong>Signature secret</strong> (Settings) → <code>VONAGE_SIGNATURE_SECRET</code> for webhook verification.</li>
+        <li>Link the purchased number to the application. Test by calling it — a Call Log + lead match should appear under <strong>Calls</strong>.</li>
+      </ol>
+    </div></div>
+  </div>
+
+  <div class="card">
+    <h2>4 · Stripe — customer payment links <span class="tag opt">Optional</span></h2>
+    <div class="meta"><span class="pill paid">2.9% + $0.30/txn</span> · ~15 minutes · powers Module 13</div>
+    <div class="chk"><input type="checkbox" /><div>
+      <ol>
+        <li>Create/sign in at <a href="https://dashboard.stripe.com" target="_blank">dashboard.stripe.com</a> and complete business verification.</li>
+        <li><strong>Developers → API keys</strong> → reveal the <strong>Secret key</strong> (<code>sk_live_…</code> or <code>sk_test_…</code>) → <code>STRIPE_SECRET_KEY</code>.</li>
+        <li><strong>Developers → Webhooks → Add endpoint</strong>: URL <code>https://YOUR-DOMAIN/api/payments/stripe-webhook</code> (handler can be added in Phase 1.1); copy the signing secret → <code>STRIPE_WEBHOOK_SECRET</code>.</li>
+        <li>Save. In a booking, click <strong>Stripe link</strong> — it now creates a real payment link for the outstanding balance.</li>
+      </ol>
+    </div></div>
+  </div>
+
+  <div class="card">
+    <h2>5 · Live exchange rates <span class="tag opt">Optional</span></h2>
+    <div class="meta"><span class="pill free">Free tier (1,500/mo)</span> · ~5 minutes · powers Module 14</div>
+    <div class="chk"><input type="checkbox" /><div>
+      <ol>
+        <li>Sign up at <a href="https://www.exchangerate-api.com" target="_blank">exchangerate-api.com</a> (free).</li>
+        <li>Copy your API key → <code>.env</code> as <code>FX_API_KEY</code> (keep <code>FX_PROVIDER="exchangerate-api"</code>).</li>
+        <li>Rates are now fetched + cached automatically when quotes are built. You can still set manual overrides under <strong>Settings → Currency</strong>.</li>
+      </ol>
+    </div></div>
+  </div>
+
+  <div class="card">
+    <h2>6 · AI assistant (Claude) <span class="tag opt">Optional</span></h2>
+    <div class="meta"><span class="pill paid">~$20–150/mo usage</span> · ~5 minutes · powers Module 22</div>
+    <div class="chk"><input type="checkbox" /><div>
+      <ol>
+        <li>Go to <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → <strong>API Keys → Create key</strong>.</li>
+        <li>Add billing (Plans &amp; Billing) and a monthly spend limit so costs stay predictable.</li>
+        <li>Paste the key into <code>.env</code> as <code>ANTHROPIC_API_KEY</code>. Model is preset to <code>claude-opus-4-8</code> (change <code>AI_MODEL</code> to <code>claude-haiku-4-5-20251001</code> for cheaper drafts).</li>
+        <li>The AI buttons on each lead now produce live drafts instead of stub text. <strong>All AI output stays editable before use.</strong></li>
+      </ol>
+    </div></div>
+  </div>
+
+  <div class="card">
+    <h2>Your <code>.env</code> checklist</h2>
+    <div class="meta">Fill these in as you complete the tasks above.</div>
+    <div class="env">DATABASE_URL="postgresql://…"          # task 1
+JWT_SECRET="long-random-string"         # task 2
+VONAGE_API_KEY=""                       # task 3
+VONAGE_API_SECRET=""                    # task 3
+VONAGE_APPLICATION_ID=""                # task 3
+VONAGE_SIGNATURE_SECRET=""              # task 3
+STRIPE_SECRET_KEY=""                    # task 4
+STRIPE_WEBHOOK_SECRET=""                # task 4
+FX_API_KEY=""                           # task 5
+ANTHROPIC_API_KEY=""                    # task 6</div>
+    <p class="note" style="margin-top:14px;">💡 The CRM checks each key on startup. Anything left blank simply stays in <strong>stub mode</strong> — the matching feature still works with safe placeholder behaviour, and the <strong>Settings → Integrations</strong> board shows you exactly what is live.</p>
+  </div>
+
+</div>
+<footer>Global Bus Rental CRM · Phase 1 · generated setup guide</footer>
+</body>
+</html>

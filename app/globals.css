@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-extrabold text-ink;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl border border-gray-200 shadow-card;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold tracking-tight transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .btn-secondary {
+    @apply btn bg-white border-2 border-brand-600 text-brand-600 hover:bg-surface;
+  }
+  .btn-gold {
+    @apply btn text-white;
+    background: linear-gradient(135deg, #d4860f, #f5a623);
+  }
+  .btn-gold:hover {
+    @apply shadow-cardmd;
+    transform: translateY(-1px);
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink2 hover:bg-surface;
+  }
+  .input,
+  .select,
+  .textarea {
+    @apply w-full rounded-lg border-2 border-gray-200 px-3 py-2 text-sm bg-white transition-colors focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15;
+  }
+  .label {
+    @apply block text-xs font-semibold text-muted mb-1 uppercase tracking-wide;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap;
+  }
+  .th {
+    @apply px-3 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap;
+  }
+  .td {
+    @apply px-3 py-2.5 text-sm text-ink2 whitespace-nowrap;
+  }
+  .kpi {
+    @apply card p-4 flex flex-col gap-1;
+  }
+  .kpi-value {
+    @apply text-2xl font-extrabold text-ink;
+  }
+  .kpi-label {
+    @apply text-xs font-semibold text-muted uppercase tracking-wide;
+  }
+  .pill {
+    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold;
+  }
+}

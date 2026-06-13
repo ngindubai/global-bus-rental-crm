@@ -1,0 +1,64 @@
+# Render Blueprint — Global Bus Rental CRM
+# In Render: New + → Blueprint → connect this repo → Apply. Render reads this file
+# and provisions the Postgres database + web service, wiring DATABASE_URL automatically.
+#
+# The web service runs on the paid Starter plan so it is ALWAYS ON — no spin-down /
+# cold start — so website lead POSTs and Vonage call webhooks never hit a sleeping
+# instance and get dropped. Postgres uses the paid Basic-256MB plan and persists all
+# CRM data. (Locally, dev uses embedded-postgres — no Docker — but production always
+# uses this managed Render Postgres.)
+#
+# Note: Render instances have an ephemeral filesystem (no persistent disk needed here —
+# all data lives in Postgres; quotes/invoices/POs are generated on the fly, not stored).
+
+databases:
+  - name: gbr-crm-db
+    plan: basic-256mb
+    region: oregon
+    databaseName: gbr_crm
+    user: gbr_crm
+
+services:
+  - type: web
+    name: gbr-crm
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm install && npx prisma generate && npm run build
+    # Schema sync + admin/sample seed run at startup. Both are idempotent, so this is
+    # safe to run on every boot (the seed skips records that already exist).
+    startCommand: npx prisma db push --skip-generate && npm run db:seed && npx next start -p $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gbr-crm-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BASE_CURRENCY
+        value: USD
+      - key: AI_MODEL
+        value: claude-opus-4-8
+      - key: FX_PROVIDER
+        value: exchangerate-api
+      - key: NODE_VERSION
+        value: "20"
+      # ── Integration keys — leave blank for stub mode; the client can paste real
+      # keys into the Render dashboard later (see SETUP-TASKS.html). sync:false keeps
+      # them as dashboard-managed secrets rather than blueprint values. ──
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: VONAGE_API_KEY
+        sync: false
+      - key: VONAGE_API_SECRET
+        sync: false
+      - key: VONAGE_APPLICATION_ID
+        sync: false
+      - key: VONAGE_SIGNATURE_SECRET
+        sync: false
+      - key: FX_API_KEY
+        sync: false
