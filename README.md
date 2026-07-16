@@ -20,9 +20,17 @@ npm run dev        # http://localhost:3200
 Data lives in `.pgdata/` (git-ignored). The cluster is created UTF8 so non-Latin
 text (Arabic names, etc.) stores cleanly.
 
-Login: `admin@globalbusrental.com` / `admin123` (change it under **Users**).
+### Logging in
 
-Seeded accounts: manager / agent (Ahmed = UAE, Sophie = UK) / finance — all `…123`.
+`npm run db:seed` provisions a single administrator. Set `INITIAL_ADMIN_EMAIL`
+and `INITIAL_ADMIN_PASSWORD` in your environment first; if `INITIAL_ADMIN_PASSWORD`
+is left unset the seed generates a random password and prints it **once** to the
+console — copy it, sign in, and change it under **Users**.
+
+Local sample data (demo leads, bookings, suppliers, and the manager/agent/finance
+demo accounts) is only created when `SEED_SAMPLE_DATA=true` (the default outside
+production). Those demo accounts and passwords exist for local development only and
+are never seeded in production.
 
 ## Integrations
 

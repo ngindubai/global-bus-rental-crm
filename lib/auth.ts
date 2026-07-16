@@ -33,7 +33,22 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
 export async function getSession(): Promise<SessionUser | null> {
   const token = cookies().get(COOKIE_NAME)?.value;
   if (!token) return null;
-  return verifyToken(token);
+  const claims = await verifyToken(token);
+  if (!claims) return null;
+  // Re-validate against the live user record (P1-17): a deactivated user loses
+  // access immediately, and the current role — not the possibly-stale role baked
+  // into the token — is what authorises the request.
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: claims.id },
+      select: { id: true, name: true, email: true, role: true, active: true },
+    });
+    if (!user || !user.active) return null;
+    return { id: user.id, name: user.name, email: user.email, role: user.role };
+  } catch {
+    // If the lookup fails, fall back to the verified token rather than hard-failing.
+    return claims;
+  }
 }
 
 export function getIp(req: NextRequest) {
@@ -77,6 +92,22 @@ export function canWrite(role: string, resource: string): boolean {
     users: [],
   };
   return (map[resource] || []).includes(role);
+}
+
+// Object-level authorisation (P0-02). List queries scope AGENT rows by owner,
+// but detail/update/delete fetch by id and must re-check ownership on the loaded
+// record. Managers, finance and admins are not owner-scoped. `ownerField` is the
+// resource's ownership column (e.g. assignedToId, agentId); when a resource has
+// none, everyone authenticated may access it.
+export function canAccessRecord(
+  session: SessionUser,
+  record: Record<string, any> | null | undefined,
+  ownerField?: string
+): boolean {
+  if (!record) return false;
+  if (session.role !== "AGENT") return true;
+  if (!ownerField) return true;
+  return record[ownerField] === session.id;
 }
 
 export async function logActivity(opts: {

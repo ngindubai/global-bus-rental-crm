@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { makeRateCache, baseCurrency } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,11 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  // Company-wide profit reporting is management/finance data — never expose it to
+  // sales agents through the API even though navigation hides the screen (P0-02).
+  if (!["ADMIN", "MANAGER", "FINANCE"].includes(session.role)) {
+    return NextResponse.json({ error: "Permission denied" }, { status: 403 });
+  }
 
   const sp = req.nextUrl.searchParams;
   const dimension = sp.get("dimension") || "agent";
@@ -38,6 +44,11 @@ export async function GET(req: NextRequest) {
     cs.forEach((c) => countryNames.set(c.id, c.name));
   }
 
+  // All figures are converted into the single base reporting currency before
+  // being summed — mixing GBP/AED/USD raw would make every total meaningless
+  // (P0-05). Profit is recomputed as (revenue − cost) in base currency rather
+  // than summing a per-booking gross profit that may itself be mixed-currency.
+  const fx = makeRateCache(baseCurrency());
   for (const b of bookings) {
     let key = "—";
     if (dimension === "agent") key = b.agent?.name || "Unassigned";
@@ -45,11 +56,13 @@ export async function GET(req: NextRequest) {
     else if (dimension === "country") key = b.countryId ? countryNames.get(b.countryId) || `#${b.countryId}` : "—";
     else if (dimension === "booking") key = b.bookingRef || `B-${b.id}`;
 
+    const revenue = await fx.toBase(b.customerInvoiceAmount, b.customerCurrency);
+    const supplierCost = await fx.toBase(b.supplierCost, b.supplierCurrency);
     const g = groups.get(key) || { key, bookings: 0, revenue: 0, supplierCost: 0, profit: 0 };
     g.bookings += 1;
-    g.revenue += b.customerInvoiceAmount || 0;
-    g.supplierCost += b.supplierCost || 0;
-    g.profit += b.grossProfit || 0;
+    g.revenue += revenue;
+    g.supplierCost += supplierCost;
+    g.profit += revenue - supplierCost;
     groups.set(key, g);
   }
 
@@ -72,7 +85,13 @@ export async function GET(req: NextRequest) {
     (t, r) => ({ bookings: t.bookings + r.bookings, revenue: round(t.revenue + r.revenue), profit: round(t.profit + r.profit) }),
     { bookings: 0, revenue: 0, profit: 0 }
   );
-  return NextResponse.json({ dimension, rows, totals });
+  return NextResponse.json({
+    dimension,
+    rows,
+    totals,
+    reportingCurrency: baseCurrency(),
+    unconvertedRows: fx.unconverted(),
+  });
 }
 
 function round(n: number) {

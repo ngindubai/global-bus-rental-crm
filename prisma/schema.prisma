@@ -181,6 +181,11 @@ model Lead {
   tasks            Task[]
   noteEntries      Note[]
   statusHistory    LeadStatusHistory[]
+
+  // Operational query indexes (P1-15): ownership/pipeline board, SLA scans.
+  @@index([assignedToId, status])
+  @@index([status])
+  @@index([slaDueAt])
 }
 
 model LeadStatusHistory {
@@ -326,6 +331,8 @@ model Quote {
 
   items    QuoteItem[]
   bookings Booking[]
+
+  @@index([leadId, status])
 }
 
 model QuoteItem {
@@ -349,7 +356,10 @@ model Booking {
   bookingRef    String?  @unique
   leadId        Int?
   lead          Lead?    @relation(fields: [leadId], references: [id])
-  quoteId       Int?
+  // At most one booking per accepted quote — enforces idempotent conversion at
+  // the database level so concurrent/duplicate "Convert" clicks cannot create two
+  // bookings (P0-06). Multiple NULLs are allowed for manually-created bookings.
+  quoteId       Int?     @unique
   quote         Quote?   @relation(fields: [quoteId], references: [id])
   brandId       Int?
   brand         Brand?   @relation(fields: [brandId], references: [id])
@@ -385,6 +395,11 @@ model Booking {
 
   payments    Payment[]
   commissions Commission[]
+
+  // Operational query indexes (P1-15): ownership, status board, upcoming travel.
+  @@index([agentId, status])
+  @@index([status])
+  @@index([travelDate])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -410,7 +425,11 @@ model Payment {
   recordedById  Int?
   recordedBy    User?    @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
   notes         String?
+  reconciledAt  DateTime? // set by finance when a receipt is matched (Unreconciled until then)
+  providerEventId String? @unique // Stripe event id for webhook idempotency
   createdAt     DateTime @default(now())
+
+  @@index([bookingId, status])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

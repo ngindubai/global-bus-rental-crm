@@ -46,9 +46,6 @@ export default function LoginPage() {
           <button className="btn-primary w-full" disabled={loading}>
             {loading ? "Signing in…" : "Sign in"}
           </button>
-          <div className="text-xs text-muted text-center pt-1">
-            Default admin: admin@globalbusrental.com / admin123
-          </div>
         </form>
       </div>
     </div>

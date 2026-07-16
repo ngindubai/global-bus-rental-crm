@@ -1,11 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession, logActivity, getIp } from "@/lib/auth";
+import { getSession, canAccessRecord, logActivity, getIp } from "@/lib/auth";
 import { renderDocument, DocSpec } from "@/lib/docs";
 
 export const dynamic = "force-dynamic";
 
 const dt = (d?: Date | null) => (d ? new Date(d).toLocaleDateString("en-GB") : "—");
+
+// Document prerequisites (P1-09). Returns a human-readable reason when a document
+// must not be produced yet, or null when all preconditions are met.
+function documentGate(type: string, b: any): string | null {
+  switch (type) {
+    case "invoice":
+      if (!(b.customerInvoiceAmount > 0)) return "No invoice amount on this booking yet.";
+      return null;
+    case "receipt":
+      if (!(b.customerPaidAmount > 0)) return "No customer payment has been received, so a receipt cannot be issued.";
+      return null;
+    case "confirmation":
+      if (!b.supplierId) return "Assign and confirm a supplier before issuing a booking confirmation.";
+      if (b.status === "Awaiting Customer Payment") return "Booking is not yet confirmed (awaiting customer payment).";
+      return null;
+    case "po":
+      if (!b.supplierId) return "No supplier is assigned, so a purchase order cannot be produced.";
+      if (!(b.supplierCost > 0)) return "No supplier cost is set on this booking.";
+      return null;
+    default:
+      return null;
+  }
+}
 
 // GET /api/documents/:type/:id  → branded printable HTML (PDF via browser print)
 // type: quote | invoice | confirmation | receipt | po
@@ -20,6 +43,7 @@ export async function GET(req: NextRequest, { params }: { params: { type: string
   if (params.type === "quote") {
     const q = await prisma.quote.findUnique({ where: { id }, include: { lead: true, brand: true, items: true } });
     if (!q) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!canAccessRecord(session, q.lead, "assignedToId")) return NextResponse.json({ error: "Not found" }, { status: 404 });
     spec = {
       kind: "Quote",
       ref: q.quoteRef || `Q-${q.id}`,
@@ -41,6 +65,11 @@ export async function GET(req: NextRequest, { params }: { params: { type: string
   } else if (params.type === "invoice" || params.type === "confirmation" || params.type === "receipt") {
     const b = await prisma.booking.findUnique({ where: { id }, include: { brand: true, lead: true, customer: true, supplier: true } });
     if (!b) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // object-level authorisation: agents only produce documents for their bookings
+    if (!canAccessRecord(session, b, "agentId")) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Prerequisite gates (P1-09): don't emit a document whose preconditions are unmet.
+    const gate = documentGate(params.type, b);
+    if (gate) return NextResponse.json({ error: gate }, { status: 409 });
     const name = b.customer?.name || b.lead?.customerName || "Customer";
     const base = {
       ref: b.bookingRef || `B-${b.id}`,
@@ -62,6 +91,9 @@ export async function GET(req: NextRequest, { params }: { params: { type: string
   } else if (params.type === "po") {
     const b = await prisma.booking.findUnique({ where: { id }, include: { brand: true, supplier: true, lead: true } });
     if (!b) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!canAccessRecord(session, b, "agentId")) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const gate = documentGate("po", b);
+    if (gate) return NextResponse.json({ error: gate }, { status: 409 });
     spec = {
       kind: "Supplier Purchase Order",
       ref: `PO-${b.bookingRef || b.id}`,

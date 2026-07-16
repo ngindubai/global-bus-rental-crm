@@ -230,3 +230,83 @@ export function coerceBody(body: Record<string, any>) {
 export function makeRef(prefix: string, id: number) {
   return `${prefix}-${new Date().getFullYear()}-${String(id).padStart(4, "0")}`;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MASS-ASSIGNMENT PROTECTION  (P0-03)
+//
+// The generic CRUD layer coerces a request body straight into Prisma, so without
+// an allowlist any authenticated writer could set fields that are never offered
+// in the UI — ownership, computed money/margin, paid amounts, audit stamps,
+// reference numbers, supplier scores, etc. For every workflow/finance resource we
+// pin the exact fields a form may write. Server-derived values (profit, margin,
+// *PaidAmount, refs, scores, response times) are intentionally absent and can
+// only change through their dedicated command paths.
+//
+// Resources NOT listed here are low-risk reference/support data (brands,
+// countries, tasks, notes, communications, alerts, attendance, exchange rates)
+// and keep the permissive behaviour.
+// ─────────────────────────────────────────────────────────────────────────────
+export const WRITABLE_FIELDS: Record<string, string[]> = {
+  leads: [
+    "source", "brandId", "sourceUrl", "campaignName", "customerId", "customerType",
+    "customerName", "companyName", "phone", "whatsapp", "email", "countryId", "city",
+    "timezone", "pickupLocation", "dropoffLocation", "travelDate", "travelTime",
+    "passengerCount", "luggageDetails", "serviceRequirements", "notes", "status",
+    "priority", "lostReason", "assignedToId", "nextFollowUpAt",
+  ],
+  serviceLines: [
+    "leadId", "serviceType", "pickupLocation", "dropoffLocation", "travelDate",
+    "travelTime", "passengerCount", "vehicleRequirement", "supplierId", "supplierCost",
+    "customerPrice", "currency", "status", "notes",
+  ],
+  supplierRequests: [
+    "leadId", "serviceLineId", "supplierId", "method", "respondedAt", "price",
+    "currency", "availability", "notes", "outcome",
+  ],
+  quotes: [
+    "leadId", "brandId", "customerCurrency", "supplierCurrency", "validUntil",
+    "internalNotes", "status", "sentAt", "acceptedAt",
+  ],
+  // Bookings expose only operational/scheduling fields through generic CRUD.
+  // All money — invoice/cost/paid amounts, profit, margin, FX — is owned by the
+  // conversion, payment-record, and (future) command endpoints, never a form.
+  bookings: [
+    "status", "notes", "travelDate", "travelTime", "pickupLocation",
+    "dropoffLocation", "passengerCount", "supplierId", "agentId", "city",
+  ],
+  suppliers: [
+    "companyName", "contactPerson", "phone", "whatsapp", "email", "countryId",
+    "serviceAreas", "bankDetails", "currency", "paymentTerms", "notes", "rating", "active",
+  ],
+  customers: [
+    "customerType", "name", "companyName", "email", "phone", "whatsapp", "countryId",
+    "city", "vip", "notes",
+  ],
+  commissions: ["bookingId", "agentId", "amount", "currency", "status", "notes"],
+};
+
+// Fields dropped for AGENT-role writers regardless of the allowlist above
+// (sensitive data agents may not set/alter through generic CRUD).
+export const AGENT_HIDDEN_FIELDS: Record<string, string[]> = {
+  suppliers: ["bankDetails"],
+};
+
+// Resources whose rows are an append-only ledger or are managed exclusively by a
+// dedicated route. Generic create/update/delete are rejected so writes must go
+// through their audited command endpoints (payments → /api/payments/*,
+// users → /api/users).
+export const GENERIC_WRITE_BLOCKED = new Set(["payments", "suppliersPayments", "users"]);
+
+// Apply the allowlist (and agent-specific hidden fields) to a coerced body.
+export function filterWritable(resource: string, data: Record<string, any>, role: string) {
+  const allow = WRITABLE_FIELDS[resource];
+  let out = data;
+  if (allow) {
+    const set = new Set(allow);
+    out = {};
+    for (const [k, v] of Object.entries(data)) if (set.has(k)) out[k] = v;
+  }
+  const hidden = role === "AGENT" ? AGENT_HIDDEN_FIELDS[resource] : undefined;
+  if (hidden) for (const f of hidden) delete out[f];
+  return out;
+}

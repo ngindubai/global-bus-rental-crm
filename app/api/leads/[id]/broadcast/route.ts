@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession, canWrite, logActivity, getIp } from "@/lib/auth";
+import { getSession, canWrite, canAccessRecord, logActivity, getIp } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +16,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!Array.isArray(supplierIds) || supplierIds.length === 0) {
     return NextResponse.json({ error: "Select at least one supplier" }, { status: 400 });
   }
+
+  // object-level authorisation (P0-02): only the lead's owner (or a manager) may
+  // broadcast supplier requests for it.
+  const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { assignedToId: true, deletedAt: true } });
+  if (!lead || lead.deletedAt) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!canAccessRecord(session, lead, "assignedToId")) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const created = await prisma.$transaction(
     supplierIds.map((sid: number) =>

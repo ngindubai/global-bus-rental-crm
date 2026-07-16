@@ -25,8 +25,10 @@ services:
     plan: starter
     region: oregon
     buildCommand: npm install && npx prisma generate && npm run build
-    # Schema sync + admin/sample seed run at startup. Both are idempotent, so this is
-    # safe to run on every boot (the seed skips records that already exist).
+    # Schema sync + a production-safe bootstrap run at startup. In production the
+    # seed only provisions reference data and a single administrator (from
+    # INITIAL_ADMIN_* below) — it never seeds sample data and never resets an
+    # existing user's password, so this is safe to run on every boot.
     startCommand: npx prisma db push --skip-generate && npm run db:seed && npx next start -p $PORT
     envVars:
       - key: DATABASE_URL
@@ -35,6 +37,16 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      - key: NODE_ENV
+        value: production
+      # ── Initial administrator bootstrap. Set INITIAL_ADMIN_PASSWORD to a strong
+      # secret in the Render dashboard before first deploy; if left blank the seed
+      # generates a random password and prints it once to the deploy log. The
+      # admin is created only if it does not already exist. ──
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
       - key: BASE_CURRENCY
         value: USD
       - key: AI_MODEL

@@ -1,9 +1,25 @@
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const prisma = new PrismaClient();
+
+// Sample/demo data (fake users, leads, bookings) must NEVER be created on a
+// production database. It is only seeded when explicitly requested via
+// SEED_SAMPLE_DATA=true (used for local dev / staging). In production the seed
+// provisions reference data and a single real administrator whose credentials
+// come from the environment — it never resets an existing user's password.
+const SEED_SAMPLE_DATA =
+  process.env.SEED_SAMPLE_DATA === "true" || process.env.NODE_ENV !== "production";
 
 async function main() {
   const pw = (p) => bcrypt.hashSync(p, 10);
+
+  await seedAdmin(pw);
+
+  if (!SEED_SAMPLE_DATA) {
+    console.log("✅ Seed complete (production mode: reference admin only, no sample data).");
+    return;
+  }
 
   // ── Countries ──
   const uae = await up("country", { name: "United Arab Emirates" }, { isoCode: "AE", currency: "AED", currencySymbol: "د.إ", timezone: "Asia/Dubai", languages: "Arabic, English" });
@@ -84,19 +100,58 @@ async function main() {
     await prisma.payment.create({ data: { bookingId: booking.id, party: "customer", direction: "in", amount: 140, currency: "GBP", method: "Bank transfer", status: "Paid", paidAt: new Date(), recordedById: finance.id } });
   }
 
-  console.log("✅ Seed complete.\n   Admin login: admin@globalbusrental.com / admin123");
+  console.log("✅ Seed complete (sample data).");
+}
+
+// Provision exactly one real administrator without ever exposing or resetting a
+// published default. The initial password is supplied out-of-band via
+// INITIAL_ADMIN_PASSWORD; if it is absent, a strong random password is generated
+// and printed once to the deploy log so it can be rotated on first login. An
+// existing admin is never touched, so an operator's password change survives
+// every restart.
+async function seedAdmin(pw) {
+  const email = (process.env.INITIAL_ADMIN_EMAIL || "admin@globalbusrental.com").toLowerCase().trim();
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    console.log(`ℹ️  Admin ${email} already exists — leaving credentials untouched.`);
+    return existing;
+  }
+  let password = process.env.INITIAL_ADMIN_PASSWORD;
+  let generated = false;
+  if (!password) {
+    password = crypto.randomBytes(15).toString("base64url");
+    generated = true;
+  }
+  const admin = await prisma.user.create({
+    data: { name: "System Admin", email, passwordHash: pw(password), role: "ADMIN" },
+  });
+  if (generated) {
+    console.log(
+      `\n🔑 Initial admin created: ${email}\n   Temporary password (shown once — change it immediately after login):\n   ${password}\n`
+    );
+  } else {
+    console.log(`🔑 Initial admin created: ${email} (password from INITIAL_ADMIN_PASSWORD).`);
+  }
+  return admin;
 }
 
 // idempotent upsert helper. isCompound = where is a compound-unique selector
 // (findUnique); otherwise `where` may be any filter (findFirst + update by id).
+// Existing-user password hashes are never overwritten so a changed password is
+// not silently reset back to a seed value on the next run.
 async function up(model, where, data, isCompound = false) {
+  const stripSecret = (d) => {
+    if (model !== "user") return d;
+    const { passwordHash, ...rest } = d;
+    return rest;
+  };
   if (isCompound) {
     const existing = await prisma[model].findUnique({ where });
-    if (existing) return prisma[model].update({ where, data });
+    if (existing) return prisma[model].update({ where, data: stripSecret(data) });
     return prisma[model].create({ data });
   }
   const existing = await prisma[model].findFirst({ where });
-  if (existing) return prisma[model].update({ where: { id: existing.id }, data });
+  if (existing) return prisma[model].update({ where: { id: existing.id }, data: stripSecret(data) });
   return prisma[model].create({ data: { ...where, ...data } });
 }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession, canWrite, logActivity, getIp, notify } from "@/lib/auth";
-import { RESOURCES, coerceBody, makeRef } from "@/lib/registry";
+import { RESOURCES, coerceBody, makeRef, filterWritable, GENERIC_WRITE_BLOCKED } from "@/lib/registry";
 import { pickOwner, slaDueAt } from "@/lib/assign";
 import { profitAndMargin } from "@/lib/currency";
 
@@ -68,9 +68,15 @@ export async function POST(req: NextRequest, { params }: { params: { resource: s
   if (!canWrite(session.role, params.resource)) {
     return NextResponse.json({ error: "Permission denied" }, { status: 403 });
   }
+  if (GENERIC_WRITE_BLOCKED.has(params.resource)) {
+    return NextResponse.json(
+      { error: "This resource cannot be created through the generic API. Use its dedicated endpoint." },
+      { status: 403 }
+    );
+  }
 
   const raw = await req.json();
-  const data = coerceBody(raw);
+  const data = filterWritable(params.resource, coerceBody(raw), session.role);
   delete data.id;
 
   const model = (prisma as any)[def.model];

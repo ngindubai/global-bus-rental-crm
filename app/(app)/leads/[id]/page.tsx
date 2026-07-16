@@ -261,10 +261,18 @@ function Quotes({ lead, reload }: { lead: any; reload: () => void }) {
     await apiSend(`/api/crud/quotes/${qid}`, "PATCH", body);
     reload();
   }
+  const [converting, setConverting] = useState(false);
   async function convert(qid: number) {
-    if (!confirm("Convert this quote into a confirmed booking?")) return;
-    const r = await apiSend("/api/bookings/from-quote", "POST", { quoteId: qid });
-    window.location.href = `/bookings/${r.booking.id}`;
+    if (converting) return;
+    if (!confirm("Record customer acceptance and create a provisional booking from this quote?")) return;
+    setConverting(true);
+    try {
+      const r = await apiSend("/api/bookings/from-quote", "POST", { quoteId: qid });
+      window.location.href = `/bookings/${r.booking.id}`;
+    } catch (e: any) {
+      alert(e.message);
+      setConverting(false);
+    }
   }
 
   return (
@@ -287,7 +295,7 @@ function Quotes({ lead, reload }: { lead: any; reload: () => void }) {
                   <div className="flex items-center gap-2">
                     <a className="text-brand-600 text-xs hover:underline" href={`/api/documents/quote/${q.id}`} target="_blank" rel="noreferrer">PDF</a>
                     {q.status === "Draft" && <button className="text-brand-600 text-xs hover:underline" onClick={() => setStatus(q.id, "Sent")}>Send</button>}
-                    {["Draft", "Sent"].includes(q.status) && <button className="text-green-700 text-xs hover:underline font-semibold" onClick={() => convert(q.id)}>Convert</button>}
+                    {q.status === "Sent" && <button className="text-green-700 text-xs hover:underline font-semibold disabled:opacity-50" disabled={converting} onClick={() => convert(q.id)}>Record acceptance</button>}
                   </div>
                 </td>
               </tr>

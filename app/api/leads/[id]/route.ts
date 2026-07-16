@@ -33,8 +33,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     },
   });
   if (!lead || lead.deletedAt) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (session.role === "AGENT" && lead.assignedToId && lead.assignedToId !== session.id) {
-    // agents can still view (temporary assistance) but flag it
+  // object-level authorisation (P0-02): an agent may only open a lead assigned to
+  // them. Reassignment is a manager/admin action; cross-agent viewing must not be
+  // possible by guessing an id.
+  if (session.role === "AGENT" && lead.assignedToId !== session.id) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json({ lead });
 }

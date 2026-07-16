@@ -26,6 +26,12 @@ export async function POST(req: NextRequest) {
     reference: booking.bookingRef || String(booking.id),
   });
 
+  // Do NOT record a Pending payment when link creation actually failed (P0-08) —
+  // a broken link must not look like a usable, in-progress payment.
+  if (link.error) {
+    return NextResponse.json({ error: "Could not create Stripe payment link. Check the Stripe configuration and try again." }, { status: 502 });
+  }
+
   const payment = await prisma.payment.create({
     data: {
       bookingId: booking.id,

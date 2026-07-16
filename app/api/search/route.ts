@@ -11,25 +11,30 @@ export async function GET(req: NextRequest) {
   if (!q || q.length < 2) return NextResponse.json({ results: [] });
 
   const ins = { contains: q, mode: "insensitive" as const };
+  // object-level scoping (P0-02): agents only find their own leads/bookings, and
+  // never customer/supplier records that would otherwise leak through search.
+  const isAgent = session.role === "AGENT";
+  const leadScope = isAgent ? { assignedToId: session.id } : {};
+  const bookingScope = isAgent ? { agentId: session.id } : {};
   const [leads, customers, suppliers, bookings, quotes] = await Promise.all([
     prisma.lead.findMany({
-      where: { deletedAt: null, OR: [{ customerName: ins }, { companyName: ins }, { email: ins }, { phone: ins }, { leadRef: ins }] },
+      where: { deletedAt: null, ...leadScope, OR: [{ customerName: ins }, { companyName: ins }, { email: ins }, { phone: ins }, { leadRef: ins }] },
       take: 6, select: { id: true, customerName: true, leadRef: true },
     }),
-    prisma.customer.findMany({
+    isAgent ? Promise.resolve([]) : prisma.customer.findMany({
       where: { deletedAt: null, OR: [{ name: ins }, { companyName: ins }, { email: ins }, { phone: ins }] },
       take: 5, select: { id: true, name: true },
     }),
-    prisma.supplier.findMany({
+    isAgent ? Promise.resolve([]) : prisma.supplier.findMany({
       where: { deletedAt: null, OR: [{ companyName: ins }, { contactPerson: ins }, { email: ins }] },
       take: 5, select: { id: true, companyName: true },
     }),
     prisma.booking.findMany({
-      where: { deletedAt: null, OR: [{ bookingRef: ins }, { city: ins }] },
+      where: { deletedAt: null, ...bookingScope, OR: [{ bookingRef: ins }, { city: ins }] },
       take: 5, select: { id: true, bookingRef: true, city: true },
     }),
     prisma.quote.findMany({
-      where: { deletedAt: null, OR: [{ quoteRef: ins }] },
+      where: { deletedAt: null, ...(isAgent ? { lead: { assignedToId: session.id } } : {}), OR: [{ quoteRef: ins }] },
       take: 5, select: { id: true, quoteRef: true },
     }),
   ]);

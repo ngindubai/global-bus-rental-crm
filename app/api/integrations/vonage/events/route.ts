@@ -19,6 +19,14 @@ export async function POST(req: NextRequest) {
   const status = e.status || e.Status || "completed";
   const durationSecs = Number(e.duration || e.Duration || 0) || null;
 
+  // Event idempotency (P0-09): a replayed webhook with the same provider UUID
+  // must not create duplicate call logs, communications, or alerts.
+  const uuid = e.uuid || e.conversation_uuid || null;
+  if (uuid) {
+    const seen = await prisma.callLog.findFirst({ where: { vonageUuid: uuid }, select: { id: true } });
+    if (seen) return NextResponse.json({ ok: true, callId: seen.id, duplicate: true });
+  }
+
   const lead = await matchLeadByNumber(direction === "outbound" ? to : from);
   const missed = isMissed(status);
 
@@ -29,7 +37,7 @@ export async function POST(req: NextRequest) {
       toNumber: to,
       durationSecs,
       recordingUrl: e.recording_url || e.recordingUrl || null,
-      vonageUuid: e.uuid || e.conversation_uuid || null,
+      vonageUuid: uuid,
       status: status,
       leadId: lead?.id ?? null,
       userId: lead?.assignedToId ?? null,

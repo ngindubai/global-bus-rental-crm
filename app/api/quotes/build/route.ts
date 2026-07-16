@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession, canWrite, logActivity, getIp } from "@/lib/auth";
+import { getSession, canWrite, canAccessRecord, logActivity, getIp } from "@/lib/auth";
 import { makeRef } from "@/lib/registry";
-import { getRate, profitAndMargin, baseCurrency } from "@/lib/currency";
+import { getRateStrict, profitAndMargin, baseCurrency, MissingRateError } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,9 @@ export async function POST(req: NextRequest) {
 
   const { leadId, serviceLineIds, customerCurrency, validDays } = await req.json();
   const lead = await prisma.lead.findUnique({ where: { id: Number(leadId) }, include: { serviceLines: true } });
-  if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  if (!lead || lead.deletedAt) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  // object-level authorisation (P0-02): agents only build quotes for their leads
+  if (!canAccessRecord(session, lead, "assignedToId")) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const lines = lead.serviceLines.filter((sl) => !serviceLineIds || serviceLineIds.includes(sl.id));
   if (lines.length === 0) return NextResponse.json({ error: "No service lines to quote" }, { status: 400 });
@@ -25,8 +27,11 @@ export async function POST(req: NextRequest) {
   let supplierCostBase = 0;
   let customerPrice = 0;
   const items: any[] = [];
+  try {
   for (const sl of lines) {
-    const rate = await getRate(sl.currency, custCur);
+    // Strict FX: refuse to price a line when the rate is unknown rather than
+    // silently assuming 1:1 and mispricing the quote (P0-05).
+    const rate = await getRateStrict(sl.currency, custCur);
     const lineCustomer = (sl.customerPrice || 0) * rate;
     supplierCostBase += (sl.supplierCost || 0) * rate;
     customerPrice += lineCustomer;
@@ -38,6 +43,15 @@ export async function POST(req: NextRequest) {
       currency: custCur,
       qty: 1,
     });
+  }
+  } catch (e) {
+    if (e instanceof MissingRateError) {
+      return NextResponse.json(
+        { error: `Cannot build quote: ${e.message}. Add a manual exchange rate under Settings → Currency and try again.` },
+        { status: 422 }
+      );
+    }
+    throw e;
   }
 
   const { profit, margin } = profitAndMargin(round(supplierCostBase), round(customerPrice));

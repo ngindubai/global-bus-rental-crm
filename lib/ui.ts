@@ -80,8 +80,10 @@ export function fmtDateTime(d?: string | Date | null) {
 export function money(n?: number | null, currency = "USD") {
   if (n == null) return "—";
   try {
-    return new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
+    // Always show minor units — rounding to whole numbers is unsafe for payment
+    // reconciliation, where a few cents/pence must be visible (P2).
+    return new Intl.NumberFormat("en-GB", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
   } catch {
-    return `${currency} ${Math.round(n)}`;
+    return `${currency} ${n.toFixed(2)}`;
   }
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getSession, canAccessRecord } from "@/lib/auth";
 import { aiRun, AiTask } from "@/lib/integrations/ai";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,10 @@ export async function POST(req: NextRequest) {
       where: { id: Number(leadId) },
       include: { brand: { select: { name: true } }, country: { select: { name: true } }, communications: { take: 10, orderBy: { occurredAt: "desc" } } },
     });
+    // object-level authorisation (P0-02): agents may only run AI over their leads
+    if (lead && !canAccessRecord(session, lead, "assignedToId")) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     if (lead) {
       ctx = {
         customerName: lead.customerName,

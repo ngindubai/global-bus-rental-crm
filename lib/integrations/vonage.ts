@@ -6,6 +6,7 @@
 // Without credentials, webhook handling still records CallLogs (so the UI works
 // end-to-end), it simply skips signature verification and outbound API calls.
 
+import { jwtVerify } from "jose";
 import { prisma } from "../db";
 
 export function vonageConfigured() {
@@ -31,13 +32,25 @@ export async function matchLeadByNumber(caller?: string | null) {
   return leads[0] || null;
 }
 
-// Verify a Vonage webhook signature (JWT in Authorization header). Returns true
-// when not configured so local/dev webhooks still flow.
-export async function verifyVonageWebhook(_authHeader?: string | null): Promise<boolean> {
-  if (!vonageConfigured() || !process.env.VONAGE_SIGNATURE_SECRET) return true;
-  // Real implementation: verify the JWT against VONAGE_SIGNATURE_SECRET.
-  // Left as a documented hook for Phase-1 wiring.
-  return true;
+// Verify a Vonage webhook (P0-09). Vonage signs webhooks with a JWT in the
+// `Authorization: Bearer <jwt>` header, HS256-signed with the signature secret.
+// When a signature secret is configured we REQUIRE and verify that JWT and reject
+// anything unsigned or tampered. When no secret is configured we only accept
+// unsigned webhooks outside production so local/dev stub testing still flows —
+// production never accepts an unsigned Vonage webhook.
+export async function verifyVonageWebhook(authHeader?: string | null): Promise<boolean> {
+  const secret = process.env.VONAGE_SIGNATURE_SECRET;
+  if (!secret) {
+    return process.env.NODE_ENV !== "production";
+  }
+  const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
+  if (!token) return false;
+  try {
+    await jwtVerify(token, new TextEncoder().encode(secret));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export type CallEvent = {

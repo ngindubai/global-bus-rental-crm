@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession, canWrite, logActivity, getIp, notify } from "@/lib/auth";
-import { RESOURCES, coerceBody } from "@/lib/registry";
+import { getSession, canWrite, canAccessRecord, logActivity, getIp, notify } from "@/lib/auth";
+import { RESOURCES, coerceBody, filterWritable, GENERIC_WRITE_BLOCKED } from "@/lib/registry";
 import { profitAndMargin } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +20,8 @@ export async function GET(req: NextRequest, { params }: { params: { resource: st
 
   const item = await (prisma as any)[def.model].findUnique({ where: { id }, include: def.include });
   if (!item || (def.softDelete && item.deletedAt)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // object-level authorisation: agents may only read their own scoped records
+  if (!canAccessRecord(session, item, def.ownerScope)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (params.resource === "users") delete (item as any).passwordHash;
   return NextResponse.json({ item });
 }
@@ -32,13 +34,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { resource: 
   if (!canWrite(session.role, params.resource)) {
     return NextResponse.json({ error: "Permission denied" }, { status: 403 });
   }
+  if (GENERIC_WRITE_BLOCKED.has(params.resource)) {
+    return NextResponse.json(
+      { error: "This resource cannot be modified through the generic API. Use its dedicated endpoint." },
+      { status: 403 }
+    );
+  }
 
   const model = (prisma as any)[def.model];
   const existing = await model.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // object-level authorisation: agents may only mutate their own scoped records
+  if (!canAccessRecord(session, existing, def.ownerScope)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const raw = await req.json();
-  const data = coerceBody(raw);
+  const data = filterWritable(params.resource, coerceBody(raw), session.role);
   delete data.id;
   delete data.createdAt;
   delete data.updatedAt;
@@ -103,11 +113,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { resource: 
     await recomputeSupplierScore(existing.supplierId);
   }
 
-  // ── booking status → payment gating + travel completion ──
+  // ── booking status → notify finance/management ──
+  // NOTE: payment amounts are NEVER derived from a status change. "Customer Paid"
+  // is a computed reflection of the immutable payment ledger (see
+  // /api/payments/record and the Stripe webhook), so a manual status flip can no
+  // longer conjure a payment that never happened (P0-04).
   if (params.resource === "bookings" && data.status && data.status !== existing.status) {
-    if (data.status === "Customer Paid" && !updated.customerPaidAmount) {
-      await prisma.booking.update({ where: { id }, data: { customerPaidAmount: updated.customerInvoiceAmount } });
-    }
     const finance = await prisma.user.findMany({ where: { role: { in: ["FINANCE", "MANAGER"] }, active: true } });
     for (const f of finance) {
       await notify(f.id, `Booking ${updated.bookingRef || id}: ${data.status}`, updated.city || "", `/bookings/${id}`);
