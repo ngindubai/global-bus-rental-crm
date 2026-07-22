@@ -53,7 +53,11 @@ jobs:
         run: npx prisma migrate deploy
 
       - name: Fail on schema drift (migrations must match schema.prisma)
-        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code || (echo "Schema drift: migrations do not match schema.prisma" && exit 1)
+        run: |
+          npx prisma migrate diff \
+            --from-url "$DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code && echo "No drift" || { echo "Schema drift - migrations do not match schema.prisma"; exit 1; }
 
       - name: Backfill (idempotent) — run twice to prove idempotency
         run: node scripts/backfill.js && node scripts/backfill.js
