@@ -44,7 +44,7 @@ services:
     #     npx prisma migrate resolve --applied 20260101000000_baseline_production
     # (marks the ALREADY-PRESENT schema as applied; the upgrade migration is NOT
     # marked — migrate deploy applies it). See IMPLEMENTATION-REPORT.md → Deployment.
-    preDeployCommand: npx prisma migrate deploy && node scripts/backfill.js && npm run db:seed
+    preDeployCommand: node scripts/predeploy.js
     # Application start only starts the application.
     startCommand: npx next start -p $PORT
     envVars:
