@@ -117,8 +117,19 @@ async function seedAdmin(pw) {
     return existing;
   }
   let password = process.env.INITIAL_ADMIN_PASSWORD;
+  // Security: in production the bootstrap password is NEVER generated-and-printed —
+  // deploy logs are not a safe channel. Require INITIAL_ADMIN_PASSWORD to be set as a
+  // secret; if it is missing, skip creation loudly rather than leak a password.
+  if (!password && process.env.NODE_ENV === "production") {
+    console.warn(
+      `⚠️  No admin '${email}' exists and INITIAL_ADMIN_PASSWORD is not set. ` +
+      `Set it as a Render secret and redeploy — refusing to create an admin with a logged password.`
+    );
+    return null;
+  }
   let generated = false;
   if (!password) {
+    // Local/dev convenience only (never reached in production per the guard above).
     password = crypto.randomBytes(15).toString("base64url");
     generated = true;
   }
@@ -127,7 +138,7 @@ async function seedAdmin(pw) {
   });
   if (generated) {
     console.log(
-      `\n🔑 Initial admin created: ${email}\n   Temporary password (shown once — change it immediately after login):\n   ${password}\n`
+      `\n🔑 Initial admin created (local/dev): ${email}\n   Temporary password (shown once — change it immediately after login):\n   ${password}\n`
     );
   } else {
     console.log(`🔑 Initial admin created: ${email} (password from INITIAL_ADMIN_PASSWORD).`);

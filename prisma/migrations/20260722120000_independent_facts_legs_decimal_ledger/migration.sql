@@ -1,5 +1,27 @@
--- DropIndex
-DROP INDEX "Booking_agentId_status_idx";
+-- ─────────────────────────────────────────────────────────────────────────────
+-- PRE-MIGRATION SAFETY GUARDS (hand-added). This migration is additive + lossless
+-- type-widening (Float→Decimal, double→numeric preserves values), with NO DROP or
+-- TRUNCATE of any data column. The guards below make the two operations that could
+-- fail on real data fail EARLY and CLEARLY (inside the migration's transaction, so
+-- nothing is half-applied) instead of with a cryptic constraint error:
+--   1. Payment.currency becomes NOT NULL — default any legacy NULL to 'USD' first.
+--   2. Booking.quoteId gains a UNIQUE index — abort with a clear message if the
+--      legacy (non-idempotent) convert produced duplicate quoteIds, so an operator
+--      can de-duplicate before retrying. No data is changed by the check.
+-- ─────────────────────────────────────────────────────────────────────────────
+UPDATE "Payment" SET "currency" = 'USD' WHERE "currency" IS NULL;
+
+DO $guard$
+BEGIN
+  IF EXISTS (
+    SELECT "quoteId" FROM "Booking"
+    WHERE "quoteId" IS NOT NULL
+    GROUP BY "quoteId" HAVING count(*) > 1
+  ) THEN
+    RAISE EXCEPTION 'Duplicate Booking.quoteId values found — resolve them before migrating (each accepted quote must map to one booking). See IMPLEMENTATION-REPORT.md → Migration.';
+  END IF;
+END
+$guard$;
 
 -- AlterTable
 ALTER TABLE "Booking" ADD COLUMN     "cancellationReason" TEXT,
@@ -18,7 +40,9 @@ ADD COLUMN     "version" INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE "Payment" ADD COLUMN     "fxSource" TEXT,
 ADD COLUMN     "idempotencyKey" TEXT,
 ADD COLUMN     "kind" TEXT NOT NULL DEFAULT 'receipt',
+ADD COLUMN     "providerEventId" TEXT,
 ADD COLUMN     "reason" TEXT,
+ADD COLUMN     "reconciledAt" TIMESTAMP(3),
 ADD COLUMN     "reconciledById" INTEGER,
 ADD COLUMN     "reportingAmount" DECIMAL(14,2),
 ADD COLUMN     "reportingCurrency" TEXT,
@@ -172,6 +196,21 @@ CREATE INDEX "BusinessEvent_bookingId_idx" ON "BusinessEvent"("bookingId");
 CREATE INDEX "BusinessEvent_type_idx" ON "BusinessEvent"("type");
 
 -- CreateIndex
+CREATE INDEX "Lead_assignedToId_status_idx" ON "Lead"("assignedToId", "status");
+
+-- CreateIndex
+CREATE INDEX "Lead_status_idx" ON "Lead"("status");
+
+-- CreateIndex
+CREATE INDEX "Lead_slaDueAt_idx" ON "Lead"("slaDueAt");
+
+-- CreateIndex
+CREATE INDEX "Quote_leadId_status_idx" ON "Quote"("leadId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Booking_quoteId_key" ON "Booking"("quoteId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Booking_paymentPlanId_key" ON "Booking"("paymentPlanId");
 
 -- CreateIndex
@@ -181,7 +220,19 @@ CREATE INDEX "Booking_agentId_operationalStage_idx" ON "Booking"("agentId", "ope
 CREATE INDEX "Booking_operationalStage_idx" ON "Booking"("operationalStage");
 
 -- CreateIndex
+CREATE INDEX "Booking_status_idx" ON "Booking"("status");
+
+-- CreateIndex
+CREATE INDEX "Booking_travelDate_idx" ON "Booking"("travelDate");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Payment_idempotencyKey_key" ON "Payment"("idempotencyKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Payment_providerEventId_key" ON "Payment"("providerEventId");
+
+-- CreateIndex
+CREATE INDEX "Payment_bookingId_status_idx" ON "Payment"("bookingId", "status");
 
 -- CreateIndex
 CREATE INDEX "Payment_bookingId_party_kind_idx" ON "Payment"("bookingId", "party", "kind");

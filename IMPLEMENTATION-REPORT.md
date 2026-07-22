@@ -4,12 +4,13 @@ Booking-workflow, finance-integrity and security work completed on branch
 `claude/crm-prompt-fixes-estsvd` (the branch that deploys to Render), built on top
 of the QA P0 commit `1447fd0`.
 
-> **Scope note.** This branch auto-deploys to production on Render, whose start
-> command runs `prisma db push` on every boot. The schema redesign was implemented
-> here (as explicitly authorised) rather than on a separate review PR. Every commit
-> builds; the schema change is applied by `db push --accept-data-loss` and is
-> **lossless** for existing data (verified — see *Migration results*). The safe
-> long-term path is `prisma migrate deploy`; see *Deployment & rollback*.
+> **Scope note.** Production deploys `main` on Render. Schema changes are applied by
+> **reviewed, version-controlled Prisma migrations** via `prisma migrate deploy` in a
+> `preDeployCommand` — there is no `db push` and no `--accept-data-loss` anywhere. The
+> upgrade is additive + lossless type-widening and preserves existing data (verified —
+> see *Migration results* and *Deployment & rollback*). Because production was
+> previously managed by `db push`, it must be **baselined once** before the first
+> deploy (after a backup); the runbook is in *Deployment & rollback*.
 
 ## Implemented requirements
 
@@ -23,7 +24,8 @@ of the QA P0 commit `1447fd0`.
 - **Real ESLint config** (`next/core-web-vitals`) + `lint`/`typecheck` scripts;
   removed `eslint.ignoreDuringBuilds` so the production build no longer skips linting.
 - **GitHub Actions CI** (`.github/workflows/ci.yml`) with a **PostgreSQL service**:
-  install, prisma generate + validate + db push, lint, type check, tests, production
+  install, prisma generate + validate, `migrate deploy` + drift check + double
+  backfill (idempotency), lint, type check, tests, production
   build, and a `--audit-level=high` gate.
 - **Zod** runtime validation on every command body with field-level errors
   (`lib/validation.ts`).
@@ -115,12 +117,16 @@ status conservatively (never regressing), recomputes paid totals from the ledger
 classifies legacy payment rows.
 
 ## Migration results
-Verified against **a fresh DB** and **an upgraded copy of representative existing
-data** (Postgres 16):
-- `db push --accept-data-loss` applied the Float→Decimal conversion **losslessly** —
-  a `600.25`/`760.32` receipt and a `1250.50` invoice were preserved exactly as
-  `numeric(14,2)`; new columns took their defaults; `BookingLeg` created.
-- Backfill: 1 booking updated, 1 leg created, 1 payment classified; **idempotent**
+Verified with `prisma migrate deploy` against **a fresh DB** and against **a copy of
+the real production schema (`a72e645`) carrying edge-case data** (Postgres 16):
+- Fresh DB: baseline + upgrade applied; `migrate diff` (DB vs `schema.prisma`) reported
+  **no drift**.
+- Production-sim (booking + a payment with NULL currency): `migrate resolve --applied`
+  baseline → `migrate deploy` applied only the upgrade; `Payment.amount` became
+  `numeric(14,2)` with `400.25` preserved; the NULL-currency guard defaulted safely; no
+  DROP/TRUNCATE ran.
+- Backfill: 1 booking updated, 1 leg created (`1000.50 GBP` preserved), 1 payment
+  classified; **idempotent**
   (second run created 0 legs).
 
 ## Test / build / audit results
@@ -138,15 +144,46 @@ data** (Postgres 16):
   denied supplier-payment and reverse (403).
 
 ## Deployment & rollback
-- Render `startCommand`: `db push --accept-data-loss` → `scripts/backfill.js` →
-  production-safe seed → `next start`. `--accept-data-loss` is required only because
-  Prisma flags the (lossless) money type change; all other changes are additive.
-- **Recommended hardening**: switch the runtime to `prisma migrate deploy` and baseline
-  the existing production DB, so schema changes are reviewed migrations rather than an
-  auto-`db push`. The migration SQL artifact is already provided.
-- **Rollback**: redeploy the previous commit. The schema change is additive + a
-  type-widening (Decimal), so the old code continues to read the data; the legacy
-  `status` column is retained. No financial history is dropped at any point.
+
+**No `db push` and no `--accept-data-loss` anywhere.** Render config:
+- `buildCommand`: `npm ci --include=dev && npx prisma generate && npm run build`
+- `preDeployCommand`: `npx prisma migrate deploy && node scripts/backfill.js && npm run db:seed`
+- `startCommand`: `npx next start -p $PORT` (start only starts the app)
+
+`prisma/migrations/` holds a **baseline** (`20260101000000_baseline_production` = the
+pre-existing production schema) and the **upgrade**
+(`20260722120000_independent_facts_legs_decimal_ledger`). The upgrade is additive +
+lossless type-widening (Float→Decimal), has **no** DROP/TRUNCATE of any data column,
+and carries pre-flight guards (NULL `Payment.currency` → 'USD'; abort with a clear
+message on duplicate `Booking.quoteId`).
+
+### One-time production runbook (requires an operator with production access)
+1. **Backup** the production Postgres (Render dashboard → database → *Backups* →
+   *Create backup*, or `pg_dump`). Record the snapshot id. **Do not proceed without a
+   verified backup.**
+2. **Pre-flight checks** against the backup or a restored copy:
+   `SELECT "quoteId", count(*) FROM "Booking" WHERE "quoteId" IS NOT NULL GROUP BY 1 HAVING count(*)>1;`
+   (must be empty) and confirm row counts / payment totals by currency.
+3. **Baseline** once (production has no `_prisma_migrations` table):
+   `npx prisma migrate resolve --applied 20260101000000_baseline_production`
+4. **Deploy** `main` — `preDeployCommand` runs `migrate deploy` (applies only the
+   upgrade), then the idempotent backfill, then the safe seed. A pre-deploy failure
+   aborts the release with the old instance still serving — no partial state.
+5. **Verify** post-deploy: row/booking/payment counts unchanged, payment totals by
+   currency unchanged, one `BookingLeg` per pre-existing booking, no orphaned FKs.
+
+### Rehearsal performed here
+Simulated the exact path on a copy of the **real production schema (`a72e645`)** with
+edge-case data (a booking, a payment with NULL currency): baseline-resolve →
+`migrate deploy` applied only the upgrade, `Payment.amount` became `numeric(14,2)` with
+`400.25` preserved, the NULL-currency guard defaulted safely, backfill created exactly
+one leg (`1000.50 GBP` preserved) and was idempotent on re-run. A fresh-DB
+`migrate deploy` then a drift check (`migrate diff` DB vs schema) reported **no drift**.
+
+### Rollback
+Redeploy the previous commit. The upgrade is additive + type-widening, so the prior
+code still reads the data (legacy `status` retained). To fully revert the schema,
+restore the pre-deploy backup. No financial history is ever dropped.
 
 ## Remaining limitations / not fully implemented
 Delivered as a coherent backend-complete core with a rebuilt booking workspace. The

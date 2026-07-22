@@ -24,23 +24,29 @@ services:
     runtime: node
     plan: starter
     region: oregon
-    # --include=dev is REQUIRED: NODE_ENV=production (below) otherwise makes
-    # `npm install` omit devDependencies, but the build needs them (prisma CLI,
-    # typescript, tailwindcss, postcss, autoprefixer, eslint). They are installed
-    # here and persist into the runtime filesystem so the startCommand's
-    # `npx prisma db push` also resolves.
-    buildCommand: npm install --include=dev && npx prisma generate && npm run build
-    # Boot sequence (all steps idempotent, safe to run on every deploy):
-    #   1. db push --accept-data-loss — sync the schema. --accept-data-loss is
-    #      REQUIRED because the money columns migrate Float→Decimal; the cast
-    #      double→numeric(14,2) is lossless (values are preserved exactly), but
-    #      Prisma flags every column-type change conservatively. NOTE: this makes
-    #      db push apply schema changes non-interactively — the safe long-term path
-    #      is `prisma migrate deploy` (see IMPLEMENTATION-REPORT.md → Deployment).
-    #   2. backfill.js — one leg per existing booking, map legacy status → the new
-    #      independent facts, recompute paid totals from the ledger (idempotent).
-    #   3. db:seed — production-safe: reference data + a single admin only.
-    startCommand: npx prisma db push --skip-generate --accept-data-loss && node scripts/backfill.js && npm run db:seed && npx next start -p $PORT
+    # Build. `npm ci --include=dev` is a clean, lockfile-exact install; --include=dev
+    # is REQUIRED because NODE_ENV=production (below) otherwise omits devDependencies,
+    # but the build/migrate tooling (prisma CLI, typescript, tailwindcss, postcss,
+    # autoprefixer, eslint) lives there. They persist into the runtime filesystem so
+    # preDeployCommand's `prisma migrate deploy` also resolves.
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    # Pre-deploy (runs after build, BEFORE the new instance serves traffic; on a
+    # failure the release is aborted and the old instance keeps running — no data at
+    # risk). NO `db push` and NO `--accept-data-loss` anywhere:
+    #   1. prisma migrate deploy — apply reviewed, version-controlled migrations only.
+    #   2. backfill.js — idempotent: one leg per existing booking, legacy-status
+    #      mapping, paid totals recomputed from the ledger.
+    #   3. db:seed — production-safe: reference data + a single admin; never resets
+    #      or overwrites existing users or operational data.
+    # ONE-TIME: production was previously managed by `db push`, so it has no
+    # _prisma_migrations table. Before the first deploy, after taking a verified
+    # backup, an operator baselines it once:
+    #     npx prisma migrate resolve --applied 20260101000000_baseline_production
+    # (marks the ALREADY-PRESENT schema as applied; the upgrade migration is NOT
+    # marked — migrate deploy applies it). See IMPLEMENTATION-REPORT.md → Deployment.
+    preDeployCommand: npx prisma migrate deploy && node scripts/backfill.js && npm run db:seed
+    # Application start only starts the application.
+    startCommand: npx next start -p $PORT
     envVars:
       - key: DATABASE_URL
         fromDatabase:

@@ -38,12 +38,24 @@ reversal/correction with a reason, never by editing history.
 
 The schema uses independent booking facts, `BookingLeg`, `PaymentPlan`/`PaymentMilestone`,
 `SupplierAcceptance`, `BookingRevision`, `BusinessEvent` and a Decimal payment ledger.
-On deploy, Render runs `prisma db push --accept-data-loss` (required only for the
-lossless Float→Decimal money cast) then `scripts/backfill.js` (idempotent: one leg per
-existing booking, conservative legacy-status mapping, paid totals recomputed from the
-ledger). A reviewable SQL migration is in `prisma/migrations/`. Locally: `npm run
-db:backfill` after `db:push`. See `IMPLEMENTATION-REPORT.md` for the safe
-`migrate deploy` hardening path.
+Production uses **reviewed, version-controlled Prisma migrations** — never `db push`
+and never `--accept-data-loss`. Render's `preDeployCommand` runs `prisma migrate
+deploy` then `scripts/backfill.js` (idempotent: one leg per existing booking,
+conservative legacy-status mapping, paid totals recomputed from the ledger) then the
+production-safe seed; the app start command only starts the app.
+
+`prisma/migrations/` contains a **baseline** migration (the pre-existing production
+schema) and the **upgrade** migration (independent facts, legs, payment plans, Decimal
+ledger — additive + lossless type-widening, with pre-flight guards for NULL currency
+and duplicate `quoteId`). Because production was previously managed by `db push`, it
+must be **baselined once** before the first `migrate deploy` (after taking a backup):
+
+```bash
+npx prisma migrate resolve --applied 20260101000000_baseline_production
+```
+
+See `IMPLEMENTATION-REPORT.md → Deployment` for the full backup → baseline → deploy
+runbook and rollback plan. Locally, `prisma migrate deploy` + `npm run db:backfill`.
 
 ## Local test / quality commands
 
