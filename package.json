@@ -9,6 +9,7 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:seed": "node prisma/seed.js",
+    "db:backfill": "node scripts/backfill.js",
     "db:reset": "prisma db push --force-reset && node prisma/seed.js",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

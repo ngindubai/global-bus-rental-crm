@@ -68,7 +68,8 @@ export async function POST(req: NextRequest) {
     }
 
     const currency = (obj.currency || pending.currency || baseCurrency()).toUpperCase();
-    const amount = typeof obj.amount_total === "number" ? obj.amount_total / 100 : pending.amount;
+    // pending.amount is a Prisma Decimal; normalise to a JS number for arithmetic.
+    const amount = typeof obj.amount_total === "number" ? obj.amount_total / 100 : Number(pending.amount);
     const baseAmount = await convert(amount, currency, baseCurrency());
 
     const result = await prisma.$transaction(async (tx) => {

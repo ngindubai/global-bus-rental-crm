@@ -12,9 +12,12 @@ export async function recomputeBookingPaid(tx: any, bookingId: number) {
   let customerPaid = 0;
   let supplierPaid = 0;
   for (const p of paidRows) {
+    // A reversal/refund row carries a positive amount but subtracts from the total.
+    const signed = p.kind === "reversal" || p.kind === "refund" ? -1 : 1;
+    const nominal = Number(p.amount); // p.amount is a Prisma Decimal
     const target = (p.party === "customer" ? booking.customerCurrency : booking.supplierCurrency) || baseCurrency();
-    const inBooking = await convert(p.amount, p.currency, target);
-    const val = isFinite(inBooking) ? inBooking : p.amount;
+    const inBooking = await convert(nominal, p.currency, target);
+    const val = (isFinite(inBooking) ? inBooking : nominal) * signed;
     if (p.party === "customer") customerPaid += val;
     else supplierPaid += val;
   }

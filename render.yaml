@@ -25,11 +25,17 @@ services:
     plan: starter
     region: oregon
     buildCommand: npm install && npx prisma generate && npm run build
-    # Schema sync + a production-safe bootstrap run at startup. In production the
-    # seed only provisions reference data and a single administrator (from
-    # INITIAL_ADMIN_* below) — it never seeds sample data and never resets an
-    # existing user's password, so this is safe to run on every boot.
-    startCommand: npx prisma db push --skip-generate && npm run db:seed && npx next start -p $PORT
+    # Boot sequence (all steps idempotent, safe to run on every deploy):
+    #   1. db push --accept-data-loss — sync the schema. --accept-data-loss is
+    #      REQUIRED because the money columns migrate Float→Decimal; the cast
+    #      double→numeric(14,2) is lossless (values are preserved exactly), but
+    #      Prisma flags every column-type change conservatively. NOTE: this makes
+    #      db push apply schema changes non-interactively — the safe long-term path
+    #      is `prisma migrate deploy` (see IMPLEMENTATION-REPORT.md → Deployment).
+    #   2. backfill.js — one leg per existing booking, map legacy status → the new
+    #      independent facts, recompute paid totals from the ledger (idempotent).
+    #   3. db:seed — production-safe: reference data + a single admin only.
+    startCommand: npx prisma db push --skip-generate --accept-data-loss && node scripts/backfill.js && npm run db:seed && npx next start -p $PORT
     envVars:
       - key: DATABASE_URL
         fromDatabase:

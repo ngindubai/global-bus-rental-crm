@@ -77,13 +77,16 @@ export function fmtDateTime(d?: string | Date | null) {
   if (!d) return "—";
   return new Date(d).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" });
 }
-export function money(n?: number | null, currency = "USD") {
+export function money(n?: number | string | null, currency = "USD") {
   if (n == null) return "—";
+  // Prisma Decimal fields serialise to strings over JSON — coerce before formatting.
+  const v = typeof n === "string" ? Number(n) : n;
+  if (!isFinite(v)) return "—";
   try {
     // Always show minor units — rounding to whole numbers is unsafe for payment
     // reconciliation, where a few cents/pence must be visible (P2).
-    return new Intl.NumberFormat("en-GB", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    return new Intl.NumberFormat("en-GB", { style: "currency", currency: currency || "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
   } catch {
-    return `${currency} ${n.toFixed(2)}`;
+    return `${currency} ${v.toFixed(2)}`;
   }
 }

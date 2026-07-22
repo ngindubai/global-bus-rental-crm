@@ -14,57 +14,59 @@ datasource db {
 // Roles: ADMIN, MANAGER, AGENT, FINANCE
 // ─────────────────────────────────────────────────────────────────────────────
 model User {
-  id           Int      @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   name         String
-  email        String   @unique
+  email        String    @unique
   passwordHash String
-  role         String   @default("AGENT")
+  role         String    @default("AGENT")
   phone        String?
   countryId    Int? // country specialist
-  country      Country? @relation(fields: [countryId], references: [id])
-  active       Boolean  @default(true)
-  online       Boolean  @default(false)
+  country      Country?  @relation(fields: [countryId], references: [id])
+  active       Boolean   @default(true)
+  online       Boolean   @default(false)
   lastSeenAt   DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  leadsAssigned    Lead[]                @relation("LeadOwner")
-  bookingsAgent    Booking[]             @relation("BookingAgent")
-  quotesCreated    Quote[]               @relation("QuoteCreator")
-  tasksAssigned    Task[]                @relation("TaskAssignee")
-  tasksCreated     Task[]                @relation("TaskCreator")
-  notes            Note[]
-  communications   Communication[]
-  callLogs         CallLog[]
-  loginLogs        LoginLog[]
-  activityLogs     ActivityLog[]
-  notifications    Notification[]
-  attendance       Attendance[]
-  commissions      Commission[]          @relation("CommissionAgent")
-  supplierRequests SupplierQuoteRequest[] @relation("SQRRequestedBy")
-  countriesManaged Country[]             @relation("CountryManager")
-  payments         Payment[]             @relation("PaymentRecordedBy")
+  leadsAssigned       Lead[]                 @relation("LeadOwner")
+  bookingsAgent       Booking[]              @relation("BookingAgent")
+  quotesCreated       Quote[]                @relation("QuoteCreator")
+  tasksAssigned       Task[]                 @relation("TaskAssignee")
+  tasksCreated        Task[]                 @relation("TaskCreator")
+  notes               Note[]
+  communications      Communication[]
+  callLogs            CallLog[]
+  loginLogs           LoginLog[]
+  activityLogs        ActivityLog[]
+  notifications       Notification[]
+  attendance          Attendance[]
+  commissions         Commission[]           @relation("CommissionAgent")
+  supplierRequests    SupplierQuoteRequest[] @relation("SQRRequestedBy")
+  countriesManaged    Country[]              @relation("CountryManager")
+  payments            Payment[]              @relation("PaymentRecordedBy")
+  paymentsReconciled  Payment[]              @relation("PaymentReconciledBy")
+  supplierAcceptances SupplierAcceptance[]   @relation("SupplierAcceptanceRecordedBy")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COUNTRY DATABASE  (Module 25)
 // ─────────────────────────────────────────────────────────────────────────────
 model Country {
-  id              Int      @id @default(autoincrement())
-  name            String   @unique
-  isoCode         String? // GB, AE, US
-  currency        String? // ISO 4217 e.g. GBP
-  currencySymbol  String?
-  timezone        String?
-  vatNotes        String?
-  languages       String?
-  managerId       Int?
-  manager         User?    @relation("CountryManager", fields: [managerId], references: [id])
+  id                 Int       @id @default(autoincrement())
+  name               String    @unique
+  isoCode            String? // GB, AE, US
+  currency           String? // ISO 4217 e.g. GBP
+  currencySymbol     String?
+  timezone           String?
+  vatNotes           String?
+  languages          String?
+  managerId          Int?
+  manager            User?     @relation("CountryManager", fields: [managerId], references: [id])
   preferredSuppliers String? // free-text / csv of supplier ids
-  notes           String?
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  deletedAt       DateTime?
+  notes              String?
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  deletedAt          DateTime?
 
   users     User[]
   leads     Lead[]
@@ -75,20 +77,20 @@ model Country {
 // BRANDING  (Module 10)  — per website/brand quote + invoice templates
 // ─────────────────────────────────────────────────────────────────────────────
 model Brand {
-  id           Int      @id @default(autoincrement())
-  name         String   @unique
-  displayName  String?
-  websiteUrl   String?
-  logoUrl      String?
-  primaryColor String?  @default("#0f5b68")
-  accentColor  String?  @default("#f5a623")
-  contactEmail String?
-  contactPhone String?
-  quoteFooter  String?
+  id            Int       @id @default(autoincrement())
+  name          String    @unique
+  displayName   String?
+  websiteUrl    String?
+  logoUrl       String?
+  primaryColor  String?   @default("#0f5b68")
+  accentColor   String?   @default("#f5a623")
+  contactEmail  String?
+  contactPhone  String?
+  quoteFooter   String?
   invoiceFooter String?
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  deletedAt    DateTime?
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  deletedAt     DateTime?
 
   leads    Lead[]
   quotes   Quote[]
@@ -99,8 +101,8 @@ model Brand {
 // CUSTOMERS  (Module 24)
 // ─────────────────────────────────────────────────────────────────────────────
 model Customer {
-  id           Int      @id @default(autoincrement())
-  customerType String   @default("private") // private | corporate
+  id           Int       @id @default(autoincrement())
+  customerType String    @default("private") // private | corporate
   name         String
   companyName  String?
   email        String?
@@ -108,10 +110,10 @@ model Customer {
   whatsapp     String?
   countryId    Int?
   city         String?
-  vip          Boolean  @default(false)
+  vip          Boolean   @default(false)
   notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
   leads    Lead[]
@@ -122,55 +124,55 @@ model Customer {
 // LEADS  (Modules 3, 4)  + pipeline + SLA
 // ─────────────────────────────────────────────────────────────────────────────
 model Lead {
-  id             Int      @id @default(autoincrement())
-  leadRef        String?  @unique
+  id                  Int       @id @default(autoincrement())
+  leadRef             String?   @unique
   // source
-  source         String   @default("Manual entry") // Website form | Phone (Vonage) | WhatsApp | Manual entry
-  brandId        Int?
-  brand          Brand?   @relation(fields: [brandId], references: [id])
-  sourceUrl      String?
-  campaignName   String?
+  source              String    @default("Manual entry") // Website form | Phone (Vonage) | WhatsApp | Manual entry
+  brandId             Int?
+  brand               Brand?    @relation(fields: [brandId], references: [id])
+  sourceUrl           String?
+  campaignName        String?
   // customer snapshot
-  customerId     Int?
-  customer       Customer? @relation(fields: [customerId], references: [id])
-  customerType   String   @default("private") // private | corporate
-  customerName   String
-  companyName    String?
-  phone          String?
-  whatsapp       String?
-  email          String?
-  countryId      Int?
-  country        Country? @relation(fields: [countryId], references: [id])
-  city           String?
-  timezone       String?
+  customerId          Int?
+  customer            Customer? @relation(fields: [customerId], references: [id])
+  customerType        String    @default("private") // private | corporate
+  customerName        String
+  companyName         String?
+  phone               String?
+  whatsapp            String?
+  email               String?
+  countryId           Int?
+  country             Country?  @relation(fields: [countryId], references: [id])
+  city                String?
+  timezone            String?
   // trip summary (header — detail lives in ServiceLine)
-  pickupLocation String?
-  dropoffLocation String?
-  travelDate     DateTime?
-  travelTime     String?
-  passengerCount Int?
-  luggageDetails String?
+  pickupLocation      String?
+  dropoffLocation     String?
+  travelDate          DateTime?
+  travelTime          String?
+  passengerCount      Int?
+  luggageDetails      String?
   serviceRequirements String?
-  notes          String?
+  notes               String?
   // pipeline
-  status         String   @default("New Lead")
-  priority       String   @default("Medium") // Low | Medium | High | Urgent
-  lostReason     String?
+  status              String    @default("New Lead")
+  priority            String    @default("Medium") // Low | Medium | High | Urgent
+  lostReason          String?
   // ownership + SLA
-  assignedToId   Int?
-  assignedTo     User?    @relation("LeadOwner", fields: [assignedToId], references: [id])
-  assignedAt     DateTime?
-  firstResponseAt DateTime?
-  slaDueAt       DateTime?
-  slaBreached    Boolean  @default(false)
-  lastContactAt  DateTime?
-  nextFollowUpAt DateTime?
+  assignedToId        Int?
+  assignedTo          User?     @relation("LeadOwner", fields: [assignedToId], references: [id])
+  assignedAt          DateTime?
+  firstResponseAt     DateTime?
+  slaDueAt            DateTime?
+  slaBreached         Boolean   @default(false)
+  lastContactAt       DateTime?
+  nextFollowUpAt      DateTime?
   // AI scoring
-  aiQualityScore   Int?
-  aiConversionPct  Int?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  deletedAt      DateTime?
+  aiQualityScore      Int?
+  aiConversionPct     Int?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
 
   serviceLines     ServiceLine[]
   supplierRequests SupplierQuoteRequest[]
@@ -189,39 +191,39 @@ model Lead {
 }
 
 model LeadStatusHistory {
-  id        Int      @id @default(autoincrement())
-  leadId    Int
-  lead      Lead     @relation(fields: [leadId], references: [id])
+  id         Int      @id @default(autoincrement())
+  leadId     Int
+  lead       Lead     @relation(fields: [leadId], references: [id])
   fromStatus String?
-  toStatus  String
-  userId    Int?
-  createdAt DateTime @default(now())
+  toStatus   String
+  userId     Int?
+  createdAt  DateTime @default(now())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MULTI-SERVICE ENQUIRY LINES  (Module 5)
 // ─────────────────────────────────────────────────────────────────────────────
 model ServiceLine {
-  id             Int      @id @default(autoincrement())
-  leadId         Int
-  lead           Lead     @relation(fields: [leadId], references: [id])
-  serviceType    String? // Airport transfer | City tour | Multi-day | Shuttle | ...
-  pickupLocation String?
-  dropoffLocation String?
-  travelDate     DateTime?
-  travelTime     String?
-  passengerCount Int?
+  id                 Int       @id @default(autoincrement())
+  leadId             Int
+  lead               Lead      @relation(fields: [leadId], references: [id])
+  serviceType        String? // Airport transfer | City tour | Multi-day | Shuttle | ...
+  pickupLocation     String?
+  dropoffLocation    String?
+  travelDate         DateTime?
+  travelTime         String?
+  passengerCount     Int?
   vehicleRequirement String?
-  supplierId     Int?
-  supplier       Supplier? @relation(fields: [supplierId], references: [id])
-  supplierCost   Float?
-  customerPrice  Float?
-  currency       String?  @default("USD")
-  margin         Float?
-  status         String   @default("Draft") // Draft | Quoting | Quoted | Confirmed | Cancelled
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  supplierId         Int?
+  supplier           Supplier? @relation(fields: [supplierId], references: [id])
+  supplierCost       Float?
+  customerPrice      Float?
+  currency           String?   @default("USD")
+  margin             Float?
+  status             String    @default("Draft") // Draft | Quoting | Quoted | Confirmed | Cancelled
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   supplierRequests SupplierQuoteRequest[]
   quoteItems       QuoteItem[]
@@ -231,36 +233,38 @@ model ServiceLine {
 // SUPPLIERS  (Modules 6, 8)
 // ─────────────────────────────────────────────────────────────────────────────
 model Supplier {
-  id            Int      @id @default(autoincrement())
-  companyName   String
-  contactPerson String?
-  phone         String?
-  whatsapp      String?
-  email         String?
-  countryId     Int?
-  country       Country? @relation(fields: [countryId], references: [id])
-  serviceAreas  String? // cities / regions
-  bankDetails   String?
-  currency      String?  @default("USD")
-  paymentTerms  String?
-  notes         String?
-  rating        Float?   @default(0) // manual manager rating 0-5
-  active        Boolean  @default(true)
+  id                Int       @id @default(autoincrement())
+  companyName       String
+  contactPerson     String?
+  phone             String?
+  whatsapp          String?
+  email             String?
+  countryId         Int?
+  country           Country?  @relation(fields: [countryId], references: [id])
+  serviceAreas      String? // cities / regions
+  bankDetails       String?
+  currency          String?   @default("USD")
+  paymentTerms      String?
+  notes             String?
+  rating            Float?    @default(0) // manual manager rating 0-5
+  active            Boolean   @default(true)
   // computed score inputs (denormalised, refreshed by scoring job)
-  avgResponseMins  Float?
-  acceptanceRate   Float?
-  cancellationCount Int   @default(0)
-  complaintCount    Int   @default(0)
-  score            Float?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
+  avgResponseMins   Float?
+  acceptanceRate    Float?
+  cancellationCount Int       @default(0)
+  complaintCount    Int       @default(0)
+  score             Float?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
 
-  inventory     SupplierVehicle[]
-  serviceLines  ServiceLine[]
-  quoteRequests SupplierQuoteRequest[]
-  bookings      Booking[]
-  payments      Payment[]
+  inventory           SupplierVehicle[]
+  serviceLines        ServiceLine[]
+  quoteRequests       SupplierQuoteRequest[]
+  bookings            Booking[]
+  payments            Payment[]
+  bookingLegs         BookingLeg[]
+  supplierAcceptances SupplierAcceptance[]
 }
 
 model SupplierVehicle {
@@ -279,125 +283,155 @@ model SupplierVehicle {
 // SUPPLIER BROADCAST QUOTING  (Module 7)
 // ─────────────────────────────────────────────────────────────────────────────
 model SupplierQuoteRequest {
-  id            Int      @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   leadId        Int
-  lead          Lead     @relation(fields: [leadId], references: [id])
+  lead          Lead         @relation(fields: [leadId], references: [id])
   serviceLineId Int?
   serviceLine   ServiceLine? @relation(fields: [serviceLineId], references: [id])
   supplierId    Int
-  supplier      Supplier @relation(fields: [supplierId], references: [id])
-  method        String   @default("email") // phone | whatsapp | email
+  supplier      Supplier     @relation(fields: [supplierId], references: [id])
+  method        String       @default("email") // phone | whatsapp | email
   requestedById Int?
-  requestedBy   User?    @relation("SQRRequestedBy", fields: [requestedById], references: [id])
-  sentAt        DateTime @default(now())
+  requestedBy   User?        @relation("SQRRequestedBy", fields: [requestedById], references: [id])
+  sentAt        DateTime     @default(now())
   respondedAt   DateTime?
   responseMins  Int?
   price         Float?
-  currency      String?  @default("USD")
+  currency      String?      @default("USD")
   availability  String? // Available | Unavailable | Tentative
   notes         String?
-  outcome       String   @default("Pending") // Pending | Accepted | Rejected
-  createdAt     DateTime @default(now())
+  outcome       String       @default("Pending") // Pending | Accepted | Rejected
+  createdAt     DateTime     @default(now())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // QUOTES  (Module 9)
 // ─────────────────────────────────────────────────────────────────────────────
 model Quote {
-  id           Int      @id @default(autoincrement())
-  quoteRef     String?  @unique
-  leadId       Int
-  lead         Lead     @relation(fields: [leadId], references: [id])
-  brandId      Int?
-  brand        Brand?   @relation(fields: [brandId], references: [id])
-  version      Int      @default(1)
-  customerCurrency String? @default("USD")
-  supplierCurrency String? @default("USD")
-  exchangeRate Float?   @default(1)
-  supplierCost Float?   @default(0)
-  customerPrice Float?  @default(0)
-  profit       Float?   @default(0)
-  margin       Float?   @default(0)
-  validUntil   DateTime?
-  internalNotes String?
-  status       String   @default("Draft") // Draft | Sent | Accepted | Rejected | Expired | Superseded
-  createdById  Int?
-  createdBy    User?    @relation("QuoteCreator", fields: [createdById], references: [id])
-  sentAt       DateTime?
-  acceptedAt   DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  deletedAt    DateTime?
+  id               Int       @id @default(autoincrement())
+  quoteRef         String?   @unique
+  leadId           Int
+  lead             Lead      @relation(fields: [leadId], references: [id])
+  brandId          Int?
+  brand            Brand?    @relation(fields: [brandId], references: [id])
+  version          Int       @default(1)
+  customerCurrency String?   @default("USD")
+  supplierCurrency String?   @default("USD")
+  exchangeRate     Float?    @default(1)
+  supplierCost     Float?    @default(0)
+  customerPrice    Float?    @default(0)
+  profit           Float?    @default(0)
+  margin           Float?    @default(0)
+  validUntil       DateTime?
+  internalNotes    String?
+  status           String    @default("Draft") // Draft | Sent | Accepted | Rejected | Expired | Superseded
+  createdById      Int?
+  createdBy        User?     @relation("QuoteCreator", fields: [createdById], references: [id])
+  sentAt           DateTime?
+  acceptedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
 
-  items    QuoteItem[]
-  bookings Booking[]
+  items        QuoteItem[]
+  bookings     Booking[]
+  paymentPlans PaymentPlan[]
 
   @@index([leadId, status])
 }
 
 model QuoteItem {
-  id            Int      @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   quoteId       Int
-  quote         Quote    @relation(fields: [quoteId], references: [id])
+  quote         Quote        @relation(fields: [quoteId], references: [id])
   serviceLineId Int?
   serviceLine   ServiceLine? @relation(fields: [serviceLineId], references: [id])
   description   String
-  supplierCost  Float?   @default(0)
-  customerPrice Float?   @default(0)
-  currency      String?  @default("USD")
-  qty           Int      @default(1)
+  supplierCost  Float?       @default(0)
+  customerPrice Float?       @default(0)
+  currency      String?      @default("USD")
+  qty           Int          @default(1)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BOOKINGS  (Modules 11, 12)
 // ─────────────────────────────────────────────────────────────────────────────
 model Booking {
-  id            Int      @id @default(autoincrement())
-  bookingRef    String?  @unique
-  leadId        Int?
-  lead          Lead?    @relation(fields: [leadId], references: [id])
+  id                    Int          @id @default(autoincrement())
+  bookingRef            String?      @unique
+  leadId                Int?
+  lead                  Lead?        @relation(fields: [leadId], references: [id])
   // At most one booking per accepted quote — enforces idempotent conversion at
   // the database level so concurrent/duplicate "Convert" clicks cannot create two
   // bookings (P0-06). Multiple NULLs are allowed for manually-created bookings.
-  quoteId       Int?     @unique
-  quote         Quote?   @relation(fields: [quoteId], references: [id])
-  brandId       Int?
-  brand         Brand?   @relation(fields: [brandId], references: [id])
-  customerId    Int?
-  customer      Customer? @relation(fields: [customerId], references: [id])
-  agentId       Int?
-  agent         User?    @relation("BookingAgent", fields: [agentId], references: [id])
-  supplierId    Int?
-  supplier      Supplier? @relation(fields: [supplierId], references: [id])
-  countryId     Int?
-  city          String?
+  quoteId               Int?         @unique
+  quote                 Quote?       @relation(fields: [quoteId], references: [id])
+  brandId               Int?
+  brand                 Brand?       @relation(fields: [brandId], references: [id])
+  customerId            Int?
+  customer              Customer?    @relation(fields: [customerId], references: [id])
+  agentId               Int?
+  agent                 User?        @relation("BookingAgent", fields: [agentId], references: [id])
+  supplierId            Int?
+  supplier              Supplier?    @relation(fields: [supplierId], references: [id])
+  countryId             Int?
+  city                  String?
   // schedule
-  travelDate    DateTime?
-  travelTime    String?
-  pickupLocation String?
-  dropoffLocation String?
-  passengerCount Int?
+  travelDate            DateTime?
+  travelTime            String?
+  pickupLocation        String?
+  dropoffLocation       String?
+  passengerCount        Int?
   // money
-  customerCurrency String? @default("USD")
-  supplierCurrency String? @default("USD")
-  exchangeRate  Float?   @default(1)
-  customerInvoiceAmount Float? @default(0)
-  customerPaidAmount    Float? @default(0)
-  supplierCost          Float? @default(0)
-  supplierPaidAmount    Float? @default(0)
-  grossProfit   Float?   @default(0)
-  margin        Float?   @default(0)
-  status        String   @default("Awaiting Customer Payment")
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
+  customerCurrency      String?      @default("USD")
+  supplierCurrency      String?      @default("USD")
+  exchangeRate          Float?       @default(1)
+  customerInvoiceAmount Float?       @default(0)
+  customerPaidAmount    Float?       @default(0)
+  supplierCost          Float?       @default(0)
+  supplierPaidAmount    Float?       @default(0)
+  grossProfit           Float?       @default(0)
+  margin                Float?       @default(0)
+  // ── INDEPENDENT WORKFLOW FACTS (replaces the single overloaded `status`) ──
+  // The old `status` string mixed customer payment, supplier confirmation and
+  // travel progress into one editable dropdown. It is retained read-only as a
+  // legacy display/compat column; the real workflow is now these orthogonal facts,
+  // each changed only through a guarded command endpoint — never a generic form.
+  //
+  // Operational stage: PROVISIONAL | CONFIRMED | IN_SERVICE | COMPLETED | CANCELLED
+  operationalStage      String       @default("PROVISIONAL")
+  // Customer acceptance: NOT_RECORDED | ACCEPTED | WITHDRAWN
+  customerAcceptance    String       @default("NOT_RECORDED")
+  // Financial closure: OPEN | RECONCILED
+  financialClosure      String       @default("OPEN")
+  // Customer/supplier payment states and travel readiness are COMPUTED from the
+  // immutable ledger + payment plan + leg data (see lib/policy.ts), not stored.
+  confirmedAt           DateTime?
+  confirmationReason    String?
+  completionOutcome     String? // completed | no_show | cancelled | incident
+  completedAt           DateTime?
+  cancelledAt           DateTime?
+  cancellationReason    String?
+  paymentPlanId         Int?         @unique // snapshot plan accepted for this booking
+  paymentPlan           PaymentPlan? @relation("BookingPlan", fields: [paymentPlanId], references: [id])
+  // Optimistic-concurrency guard: commands reject stale writes instead of
+  // last-write-wins. Bumped on every guarded transition.
+  version               Int          @default(1)
+  status                String       @default("Awaiting Customer Payment") // legacy display/compat
+  notes                 String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  deletedAt             DateTime?
 
   payments    Payment[]
   commissions Commission[]
+  legs        BookingLeg[]
+  revisions   BookingRevision[]
+  events      BusinessEvent[]
 
   // Operational query indexes (P1-15): ownership, status board, upcoming travel.
-  @@index([agentId, status])
+  @@index([agentId, operationalStage])
+  @@index([operationalStage])
   @@index([status])
   @@index([travelDate])
 }
@@ -405,52 +439,223 @@ model Booking {
 // ─────────────────────────────────────────────────────────────────────────────
 // FINANCE & PAYMENTS  (Module 13)
 // ─────────────────────────────────────────────────────────────────────────────
+// Immutable, append-only money ledger. Rows are NEVER edited or deleted; a mistake
+// is corrected by appending a reversal/correction that references the original.
+// Money and FX are Prisma Decimal so arithmetic is exact (no float drift).
 model Payment {
-  id            Int      @id @default(autoincrement())
-  bookingId     Int
-  booking       Booking  @relation(fields: [bookingId], references: [id])
-  party         String   @default("customer") // customer | supplier
-  direction     String   @default("in") // in (customer pays us) | out (we pay supplier)
-  supplierId    Int?
-  supplier      Supplier? @relation(fields: [supplierId], references: [id])
-  amount        Float
-  currency      String?  @default("USD")
-  baseAmount    Float? // converted to base reporting currency
-  exchangeRate  Float?   @default(1)
-  method        String? // Bank transfer | Stripe | Cash
-  reference     String? // stripe payment-intent id / bank ref
-  stripeLinkUrl String?
-  status        String   @default("Pending") // Pending | Paid | Failed | Refunded
-  paidAt        DateTime?
-  recordedById  Int?
-  recordedBy    User?    @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
-  notes         String?
-  reconciledAt  DateTime? // set by finance when a receipt is matched (Unreconciled until then)
-  providerEventId String? @unique // Stripe event id for webhook idempotency
-  createdAt     DateTime @default(now())
+  id                Int       @id @default(autoincrement())
+  bookingId         Int
+  booking           Booking   @relation(fields: [bookingId], references: [id])
+  party             String    @default("customer") // customer | supplier
+  direction         String    @default("in") // in (customer pays us) | out (we pay supplier)
+  // Ledger entry kind — drives which command may create it and how it rolls up:
+  // receipt (customer in) | supplier_payment (out) | refund (out) | reversal | correction
+  kind              String    @default("receipt")
+  supplierId        Int?
+  supplier          Supplier? @relation(fields: [supplierId], references: [id])
+  amount            Decimal   @db.Decimal(14, 2)
+  currency          String    @default("USD")
+  baseAmount        Decimal?  @db.Decimal(14, 2) // amount in booking currency
+  reportingAmount   Decimal?  @db.Decimal(14, 2) // amount in base reporting currency
+  reportingCurrency String? // base reporting currency at time of posting
+  exchangeRate      Decimal?  @default(1) @db.Decimal(18, 8)
+  fxSource          String? // manual | api — provenance of the rate used
+  method            String? // Bank transfer | Stripe | Cash
+  reference         String? // stripe payment-intent id / bank ref
+  stripeLinkUrl     String?
+  status            String    @default("Pending") // Pending | Paid | Failed | Refunded | Reversed
+  paidAt            DateTime?
+  recordedById      Int?
+  recordedBy        User?     @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
+  reason            String? // required for refund / reversal / correction
+  reversalOfId      Int? // the ledger row this reverses/corrects
+  reversalOf        Payment?  @relation("PaymentReversal", fields: [reversalOfId], references: [id])
+  reversedBy        Payment[] @relation("PaymentReversal")
+  notes             String?
+  reconciledAt      DateTime? // set by finance when a receipt is matched (Unreconciled until then)
+  reconciledById    Int?
+  reconciledBy      User?     @relation("PaymentReconciledBy", fields: [reconciledById], references: [id])
+  // Client-generated key so a retried/duplicated receipt POST is a no-op instead
+  // of a second ledger row. Unique across the ledger.
+  idempotencyKey    String?   @unique
+  providerEventId   String?   @unique // Stripe event id for webhook idempotency
+  createdAt         DateTime  @default(now())
 
   @@index([bookingId, status])
+  @@index([bookingId, party, kind])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOOKING LEGS  — one operational + immutable-commercial unit per accepted quote
+// item / service line. The normal booking has exactly one leg; extra legs (return
+// journey, extra vehicle, extra supplier) are added progressively.
+// ─────────────────────────────────────────────────────────────────────────────
+model BookingLeg {
+  id                   Int       @id @default(autoincrement())
+  bookingId            Int
+  booking              Booking   @relation(fields: [bookingId], references: [id])
+  legIndex             Int       @default(1)
+  quoteItemId          Int? // source accepted quote item (commercial snapshot origin)
+  serviceLineId        Int?
+  // ── immutable commercial + itinerary snapshot (what the customer accepted) ──
+  serviceType          String?
+  serviceDate          DateTime?
+  serviceTime          String?
+  timezone             String? // IANA e.g. Europe/London
+  pickupLocation       String?
+  dropoffLocation      String?
+  passengerCount       Int?
+  vehicleRequirement   String?
+  supplierId           Int?
+  supplier             Supplier? @relation(fields: [supplierId], references: [id])
+  supplierAmount       Decimal?  @db.Decimal(14, 2)
+  supplierCurrency     String?   @default("USD")
+  customerAmount       Decimal?  @db.Decimal(14, 2)
+  customerCurrency     String?   @default("USD")
+  fxRate               Decimal?  @db.Decimal(18, 8) // applied FX snapshot for reporting
+  // ── supplier commitment (distinct from a mere price/availability response) ──
+  // UNASSIGNED | REQUESTED | HELD | ACCEPTED | DECLINED | CANCELLED
+  supplierConfirmation String    @default("UNASSIGNED")
+  // ── operational trip details captured per leg ──
+  driverName           String?
+  driverContact        String?
+  vehicleType          String?
+  vehicleCapacity      Int?
+  vehicleRegistration  String?
+  pickupInstructions   String?
+  emergencyContact     String?
+  // readiness cache (authoritative computation lives in lib/policy.ts)
+  readiness            String    @default("BLOCKED") // BLOCKED | ATTENTION | READY
+  cancelledAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  supplierAcceptances SupplierAcceptance[]
+
+  @@index([bookingId])
+  @@index([supplierId, supplierConfirmation])
+}
+
+// A manually-recorded supplier commitment to a specific leg. NOT inferred from a
+// supplier merely quoting a price — captured deliberately by the sales agent.
+model SupplierAcceptance {
+  id                Int        @id @default(autoincrement())
+  bookingLegId      Int
+  leg               BookingLeg @relation(fields: [bookingLegId], references: [id])
+  supplierId        Int
+  supplier          Supplier   @relation(fields: [supplierId], references: [id])
+  supplierRequestId Int? // accepted supplier offer/request when one exists
+  acceptingContact  String?
+  recordedById      Int?
+  recordedBy        User?      @relation("SupplierAcceptanceRecordedBy", fields: [recordedById], references: [id])
+  acceptedAt        DateTime   @default(now())
+  channel           String     @default("phone") // phone | whatsapp | email | other
+  agreedAmount      Decimal    @db.Decimal(14, 2)
+  agreedCurrency    String     @default("USD")
+  agreedTerms       String?
+  holdExpiresAt     DateTime?
+  notes             String?
+  evidenceRef       String?
+  createdAt         DateTime   @default(now())
+
+  @@index([bookingLegId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYMENT PLANS — chosen while quoting, snapshotted onto the booking at acceptance.
+// ─────────────────────────────────────────────────────────────────────────────
+model PaymentPlan {
+  id                 Int      @id @default(autoincrement())
+  quoteId            Int? // draft plan attached while preparing/sending a quote
+  quote              Quote?   @relation(fields: [quoteId], references: [id])
+  // percentage_deposit | fixed_deposit | full_payment | approved_credit
+  planType           String   @default("full_payment")
+  depositPercent     Decimal? @db.Decimal(6, 3) // for percentage_deposit
+  depositAmount      Decimal? @db.Decimal(14, 2) // for fixed_deposit
+  currency           String   @default("USD")
+  creditApproved     Boolean  @default(false)
+  creditApprovedById Int?
+  creditTermsDays    Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  milestones PaymentMilestone[]
+  booking    Booking?           @relation("BookingPlan")
+}
+
+model PaymentMilestone {
+  id             Int         @id @default(autoincrement())
+  planId         Int
+  plan           PaymentPlan @relation(fields: [planId], references: [id])
+  label          String
+  amount         Decimal     @db.Decimal(14, 2)
+  currency       String      @default("USD")
+  dueBasis       String      @default("acceptance") // acceptance | travel
+  dueOffsetDays  Int         @default(0)
+  // The milestone whose satisfaction confirms the booking (deposit, typically).
+  isConfirmation Boolean     @default(false)
+  sortOrder      Int         @default(0)
+
+  @@index([planId])
+}
+
+// A structured, immutable revision of an accepted booking. Material changes append
+// a revision rather than overwriting the accepted record.
+model BookingRevision {
+  id                           Int       @id @default(autoincrement())
+  bookingId                    Int
+  booking                      Booking   @relation(fields: [bookingId], references: [id])
+  revisionIndex                Int       @default(1)
+  changeType                   String // route | schedule | passengers | vehicle | supplier | customer_price | supplier_cost | payment_plan
+  status                       String    @default("proposed") // proposed | applied | cancelled
+  oldValues                    String? // JSON snapshot of prior values
+  newValues                    String? // JSON snapshot of proposed values
+  requiresCustomerReacceptance Boolean   @default(false)
+  requiresSupplierReacceptance Boolean   @default(false)
+  reason                       String?
+  createdById                  Int?
+  appliedAt                    DateTime?
+  createdAt                    DateTime  @default(now())
+
+  @@index([bookingId])
+}
+
+// Correlated business/audit events for the workflow (acceptance, confirmation,
+// supplier acceptance, reconciliation, cancellation). Distinct from the raw
+// field-level ActivityLog: these carry business meaning and correlation.
+model BusinessEvent {
+  id            Int      @id @default(autoincrement())
+  type          String // customer_accepted | supplier_accepted | confirmed | reconciled | reversed | cancelled | amended
+  bookingId     Int?
+  booking       Booking? @relation(fields: [bookingId], references: [id])
+  correlationId String?
+  userId        Int?
+  data          String? // JSON payload
+  createdAt     DateTime @default(now())
+
+  @@index([bookingId])
+  @@index([type])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMMISSIONS  (Module 19)  — manual
 // ─────────────────────────────────────────────────────────────────────────────
 model Commission {
-  id          Int      @id @default(autoincrement())
-  bookingId   Int?
-  booking     Booking? @relation(fields: [bookingId], references: [id])
-  agentId     Int?
-  agent       User?    @relation("CommissionAgent", fields: [agentId], references: [id])
-  amount      Float
-  currency    String?  @default("USD")
-  status      String   @default("pending") // pending | approved | paid
-  notes       String?
-  createdById Int?
+  id           Int       @id @default(autoincrement())
+  bookingId    Int?
+  booking      Booking?  @relation(fields: [bookingId], references: [id])
+  agentId      Int?
+  agent        User?     @relation("CommissionAgent", fields: [agentId], references: [id])
+  amount       Float
+  currency     String?   @default("USD")
+  status       String    @default("pending") // pending | approved | paid
+  notes        String?
+  createdById  Int?
   approvedById Int?
-  paidDate    DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  paidDate     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -458,7 +663,7 @@ model Commission {
 // ─────────────────────────────────────────────────────────────────────────────
 model Communication {
   id         Int      @id @default(autoincrement())
-  channel    String   // Phone | WhatsApp | Email | Internal note | Supplier
+  channel    String // Phone | WhatsApp | Email | Internal note | Supplier
   direction  String? // Inbound | Outbound
   party      String?  @default("customer") // customer | supplier | internal
   summary    String
@@ -494,15 +699,15 @@ model CallLog {
 // STAFF ATTENDANCE  (Module 18)
 // ─────────────────────────────────────────────────────────────────────────────
 model Attendance {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  user        User     @relation(fields: [userId], references: [id])
-  clockInAt   DateTime?
-  clockOutAt  DateTime?
-  breakMins   Int      @default(0)
-  ip          String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+  clockInAt  DateTime?
+  clockOutAt DateTime?
+  breakMins  Int       @default(0)
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -523,22 +728,22 @@ model ExchangeRate {
 // GENERIC SUPPORT: tasks, notes, audit, login, notifications, alerts, settings
 // ─────────────────────────────────────────────────────────────────────────────
 model Task {
-  id           Int      @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   title        String
   taskType     String?
   description  String?
   leadId       Int?
-  lead         Lead?    @relation(fields: [leadId], references: [id])
+  lead         Lead?     @relation(fields: [leadId], references: [id])
   assignedToId Int?
-  assignedTo   User?    @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  assignedTo   User?     @relation("TaskAssignee", fields: [assignedToId], references: [id])
   createdById  Int?
-  createdBy    User?    @relation("TaskCreator", fields: [createdById], references: [id])
+  createdBy    User?     @relation("TaskCreator", fields: [createdById], references: [id])
   dueDate      DateTime?
-  priority     String   @default("Medium")
-  status       String   @default("Open")
+  priority     String    @default("Medium")
+  status       String    @default("Open")
   completedAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 }
 
@@ -589,15 +794,15 @@ model Notification {
 }
 
 model Alert {
-  id        Int       @id @default(autoincrement())
-  type      String // sla_breach | missed_call | supplier_no_response | payment_overdue | ...
-  severity  String    @default("warning") // info | warning | critical
-  title     String
-  body      String?
+  id         Int       @id @default(autoincrement())
+  type       String // sla_breach | missed_call | supplier_no_response | payment_overdue | ...
+  severity   String    @default("warning") // info | warning | critical
+  title      String
+  body       String?
   entityType String?
-  entityId  Int?
+  entityId   Int?
   resolvedAt DateTime?
-  createdAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
 }
 
 model Setting {
