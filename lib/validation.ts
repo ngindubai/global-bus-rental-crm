@@ -38,11 +38,11 @@ export const isoCurrency = z
   .toUpperCase()
   .regex(/^[A-Z]{3}$/, "Currency must be a 3-letter ISO code");
 
-// Money as a positive value. Kept as a string|number and validated as a finite,
-// strictly-positive number so callers can hand it to Prisma.Decimal safely.
-export const positiveAmount = z
-  .union([z.number(), z.string()])
-  .transform((v) => (typeof v === "string" ? Number(v) : v))
+// Money as a positive value: coerces a numeric string to a number and validates it
+// is finite and strictly positive, so callers get a clean `number` to hand to
+// Prisma.Decimal. Rejects 0, negatives, NaN and Infinity.
+export const positiveAmount = z.coerce
+  .number()
   .refine((n) => Number.isFinite(n) && n > 0, "Amount must be a positive number");
 
 export const optionalNote = z.string().trim().max(2000).optional().nullable();

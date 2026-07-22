@@ -264,10 +264,12 @@ function Quotes({ lead, reload }: { lead: any; reload: () => void }) {
   const [converting, setConverting] = useState(false);
   async function convert(qid: number) {
     if (converting) return;
-    if (!confirm("Record customer acceptance and create a provisional booking from this quote?")) return;
+    const channel = (prompt("How did the customer accept? (phone / whatsapp / email / in_person / other)", "email") || "other")
+      .toLowerCase().trim();
+    const allowed = ["phone", "whatsapp", "email", "in_person", "other"];
     setConverting(true);
     try {
-      const r = await apiSend("/api/bookings/from-quote", "POST", { quoteId: qid });
+      const r = await apiSend(`/api/quotes/${qid}/record-acceptance`, "POST", { channel: allowed.includes(channel) ? channel : "other" });
       window.location.href = `/bookings/${r.booking.id}`;
     } catch (e: any) {
       alert(e.message);
