@@ -24,7 +24,12 @@ services:
     runtime: node
     plan: starter
     region: oregon
-    buildCommand: npm install && npx prisma generate && npm run build
+    # --include=dev is REQUIRED: NODE_ENV=production (below) otherwise makes
+    # `npm install` omit devDependencies, but the build needs them (prisma CLI,
+    # typescript, tailwindcss, postcss, autoprefixer, eslint). They are installed
+    # here and persist into the runtime filesystem so the startCommand's
+    # `npx prisma db push` also resolves.
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     # Boot sequence (all steps idempotent, safe to run on every deploy):
     #   1. db push --accept-data-loss — sync the schema. --accept-data-loss is
     #      REQUIRED because the money columns migrate Float→Decimal; the cast
