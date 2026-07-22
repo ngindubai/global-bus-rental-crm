@@ -49,8 +49,18 @@ jobs:
       - name: Prisma schema validate
         run: npx prisma validate
 
-      - name: Push schema to test database
-        run: npx prisma db push --skip-generate
+      - name: Apply migrations to test database (validates the migration chain)
+        run: npx prisma migrate deploy
+
+      - name: Fail on schema drift (migrations must match schema.prisma)
+        run: |
+          npx prisma migrate diff \
+            --from-url "$DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code && echo "No drift" || { echo "Schema drift - migrations do not match schema.prisma"; exit 1; }
+
+      - name: Backfill (idempotent) — run twice to prove idempotency
+        run: node scripts/backfill.js && node scripts/backfill.js
 
       - name: Lint
         run: npm run lint
