@@ -8,7 +8,8 @@ import { profitAndMargin } from "@/lib/currency";
 export const dynamic = "force-dynamic";
 
 // GET /api/crud/:resource — list with search/filter/pagination
-export async function GET(req: NextRequest, { params }: { params: { resource: string } }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ resource: string }> }) {
+  const params = await ctx.params;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const def = RESOURCES[params.resource];
@@ -60,7 +61,8 @@ export async function GET(req: NextRequest, { params }: { params: { resource: st
 }
 
 // POST /api/crud/:resource — create
-export async function POST(req: NextRequest, { params }: { params: { resource: string } }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ resource: string }> }) {
+  const params = await ctx.params;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const def = RESOURCES[params.resource];

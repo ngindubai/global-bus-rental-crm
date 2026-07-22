@@ -32,7 +32,8 @@ function documentGate(type: string, b: any): string | null {
 
 // GET /api/documents/:type/:id  → branded printable HTML (PDF via browser print)
 // type: quote | invoice | confirmation | receipt | po
-export async function GET(req: NextRequest, { params }: { params: { type: string; id: string } }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ type: string; id: string }> }) {
+  const params = await context.params;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const id = Number(params.id);

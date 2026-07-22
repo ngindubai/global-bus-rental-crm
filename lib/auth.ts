@@ -31,7 +31,7 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
 }
 
 export async function getSession(): Promise<SessionUser | null> {
-  const token = cookies().get(COOKIE_NAME)?.value;
+  const token = (await cookies()).get(COOKIE_NAME)?.value;
   if (!token) return null;
   const claims = await verifyToken(token);
   if (!claims) return null;

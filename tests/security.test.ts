@@ -5,20 +5,24 @@ import { canAccessRecord } from "@/lib/auth";
 
 // ── Mass-assignment protection (P0-03) ───────────────────────────────────────
 describe("filterWritable — booking mass-assignment protection", () => {
-  it("strips finance/derived fields an attacker might inject", () => {
+  it("strips finance/derived/ownership/workflow fields an attacker might inject", () => {
     const malicious = {
-      status: "Customer Paid",
+      status: "Customer Paid", // workflow state — command endpoints only
       notes: "ok",
       customerPaidAmount: 999999, // must NOT be settable via a form
       supplierPaidAmount: 999999,
       grossProfit: 999999,
       customerInvoiceAmount: 0,
-      agentId: 7,
+      agentId: 7, // ownership reassignment — dedicated command only
       bookingRef: "B-HACK",
       quoteId: 42,
     };
     const out = filterWritable("bookings", malicious, "AGENT");
-    expect(out).toEqual({ status: "Customer Paid", notes: "ok", agentId: 7 });
+    // Only the whitelisted operational note survives; ownership, money and the
+    // workflow lifecycle can never be mass-assigned through generic CRUD.
+    expect(out).toEqual({ notes: "ok" });
+    expect(out).not.toHaveProperty("status");
+    expect(out).not.toHaveProperty("agentId");
     expect(out).not.toHaveProperty("customerPaidAmount");
     expect(out).not.toHaveProperty("grossProfit");
     expect(out).not.toHaveProperty("customerInvoiceAmount");

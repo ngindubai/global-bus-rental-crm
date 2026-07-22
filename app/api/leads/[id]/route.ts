@@ -5,10 +5,10 @@ import { getSession } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 // Rich lead detail with every related collection for the lead workspace page.
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  const id = Number(params.id);
+  const id = Number((await params).id);
   if (isNaN(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const lead = await prisma.lead.findUnique({

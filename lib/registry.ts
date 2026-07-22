@@ -269,10 +269,15 @@ export const WRITABLE_FIELDS: Record<string, string[]> = {
   ],
   // Bookings expose only operational/scheduling fields through generic CRUD.
   // All money — invoice/cost/paid amounts, profit, margin, FX — is owned by the
-  // conversion, payment-record, and (future) command endpoints, never a form.
+  // acceptance, payment-record and finance command endpoints, never a form.
+  // Ownership (agentId) and the workflow lifecycle (operationalStage / customer
+  // acceptance / financial closure) are NOT writable here: reassignment and every
+  // state transition go through dedicated, authorised command endpoints so an
+  // agent cannot reassign a booking to themselves or skip the workflow by editing
+  // a field. `status` is the legacy display column, kept read-only during the
+  // transition to the independent-facts model.
   bookings: [
-    "status", "notes", "travelDate", "travelTime", "pickupLocation",
-    "dropoffLocation", "passengerCount", "supplierId", "agentId", "city",
+    "notes", "travelTime", "pickupLocation", "dropoffLocation", "passengerCount", "city",
   ],
   suppliers: [
     "companyName", "contactPerson", "phone", "whatsapp", "email", "countryId",

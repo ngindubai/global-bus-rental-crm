@@ -6,12 +6,12 @@ export const dynamic = "force-dynamic";
 
 // POST — broadcast a quote request to multiple suppliers for a lead (Module 7).
 // body: { supplierIds: number[], serviceLineId?: number, method: string, notes?: string }
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!canWrite(session.role, "supplierRequests")) return NextResponse.json({ error: "Permission denied" }, { status: 403 });
 
-  const leadId = Number(params.id);
+  const leadId = Number((await params).id);
   const { supplierIds, serviceLineId, method, notes } = await req.json();
   if (!Array.isArray(supplierIds) || supplierIds.length === 0) {
     return NextResponse.json({ error: "Select at least one supplier" }, { status: 400 });

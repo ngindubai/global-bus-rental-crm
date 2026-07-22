@@ -12,7 +12,8 @@ function ctx(params: { resource: string; id: string }) {
   return { def, id };
 }
 
-export async function GET(req: NextRequest, { params }: { params: { resource: string; id: string } }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ resource: string; id: string }> }) {
+  const params = await context.params;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const { def, id } = ctx(params);
@@ -26,7 +27,8 @@ export async function GET(req: NextRequest, { params }: { params: { resource: st
   return NextResponse.json({ item });
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { resource: string; id: string } }) {
+export async function PATCH(req: NextRequest, context: { params: Promise<{ resource: string; id: string }> }) {
+  const params = await context.params;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const { def, id } = ctx(params);
@@ -143,7 +145,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { resource: 
   return NextResponse.json({ item: updated });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { resource: string; id: string } }) {
+export async function DELETE(req: NextRequest, context: { params: Promise<{ resource: string; id: string }> }) {
+  const params = await context.params;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const { def, id } = ctx(params);

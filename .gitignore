@@ -12,3 +12,6 @@ next-env.d.ts
 # local embedded-postgres data cluster — never commit
 /.pgdata
 seed-out.txt
+
+# TypeScript incremental build info
+*.tsbuildinfo
